@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+# The name used for 'pip install treely'
+name = "treely"
+version = "1.0.0"
+authors = [
+    { name="Rudra Mondal", email="rudramondal815@gmail.com" },
+]
+description = "A modern, beautiful and powerful command-line directory tree generator with advanced filtering and code-viewing capabilities."
+readme = "README.md"
+requires-python = ">=3.7"
+license = { file="LICENSE" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: System :: Filesystems",
+    "Environment :: Console",
+]
+keywords = ["tree", "treely", "directory", "cli", "tool", "generator", "structure", "dirtree", "treegen", "foldertree"]
+
+[project.urls]
+# Optional: Replace with the link to your project's GitHub repository if you have one.
+Homepage = "https://github.com/rudra-mondal/treely"
+
+# This creates the 'treely' command in the user's terminal.
+[project.scripts]
+treely = "treely.main:main"
