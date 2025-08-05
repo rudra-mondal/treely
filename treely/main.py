@@ -5,9 +5,59 @@ import argparse
 import fnmatch
 
 # --- Constants ---
-CODE_EXTENSIONS = {'.py', '.js', '.html', '.css', '.java', '.c', '.cpp', '.h', '.hpp',
-                   '.go', '.rs', '.php', '.rb', '.md', '.json', '.xml', '.yml', '.yaml',
-                   '.sh', '.bat', '.ps1', '.sql', '.ts'}
+CODE_EXTENSIONS = {
+    '.py',    # Python
+    '.js',    # JavaScript
+    '.ts',    # TypeScript
+    '.jsx',   # React JSX
+    '.tsx',   # React TSX
+    '.html',  # HTML
+    '.htm',   # HTML (alternate)
+    '.css',   # CSS
+    '.scss',  # Sass
+    '.less',  # Less CSS
+    '.java',  # Java
+    '.c',     # C
+    '.cpp',   # C++
+    '.h',     # C Header
+    '.hpp',   # C++ Header
+    '.cs',    # C#
+    '.go',    # Go
+    '.rs',    # Rust
+    '.php',   # PHP
+    '.rb',    # Ruby
+    '.kt',    # Kotlin
+    '.swift', # Swift
+    '.m',     # Objective-C
+    '.mm',    # Objective-C++
+    '.dart',  # Dart (Flutter)
+    '.scala', # Scala
+    '.lua',   # Lua
+    '.pl',    # Perl
+    '.sh',    # Shell script
+    '.bash',  # Bash script
+    '.bat',   # Batch (Windows)
+    '.ps1',   # PowerShell
+    '.sql',   # SQL
+    '.xml',   # XML
+    '.json',  # JSON
+    '.yaml',  # YAML
+    '.yml',   # YAML (alternate)
+    '.toml',  # TOML
+    '.ini',   # INI config
+    '.env',   # Env config
+    '.md',    # Markdown
+    '.rst',   # reStructuredText
+    '.tex',   # LaTeX
+    '.cfg',   # Config file
+    '.conf',  # Config file
+    '.make',  # Makefile
+    '.mk',    # Makefile (alt)
+    '.dockerfile',  # Dockerfile (if saved as extension)
+    '.gradle',  # Gradle build
+    '.tsbuildinfo', # TypeScript build info
+}
+
 PRINT_ALL_CODE = "___PRINT_ALL_CODE___"
 
 def print_banner():

@@ -1,0 +1,6 @@
+Update Workflow
+1. Change Code: Modify treely/main.py.
+2. Bump Version: Increment version in pyproject.toml.
+3. Update Docs: Edit README.md to reflect changes.
+4. Build: Run python -m build.
+5. Publish: Run twine upload dist/*

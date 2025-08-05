@@ -7,8 +7,8 @@
 
 A beautiful and powerful command-line directory tree generator with advanced filtering and code-viewing capabilities.
 
-![Treely Demo GIF](https://your-link-to-a-demo-gif.com/demo.gif)
-*(Suggestion: You can use a tool like [Terminalizer](https://github.com/faressoft/terminalizer) to record a GIF of your tool in action and link it here!)*
+![Treely Demo GIF](https://github.com/user-attachments/assets/bdba702c-5786-4a12-9c93-10c48b2b1577)
+
 
 ---
 
