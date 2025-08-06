@@ -61,7 +61,6 @@ CODE_EXTENSIONS = {
     '.debug',       # For Debuging files
 }
 
-PRINT_ALL_CODE = "___PRINT_ALL_CODE___"
 DEFAULT_OUTPUT_FILENAME = "treely_output.txt"
 
 # Optional dependency handling
@@ -121,10 +120,9 @@ def generate_directory_tree(config):
     Generates the complete output string for the directory tree and file contents.
     """
     output_lines = []
-    files_to_print_code = [] if config.code is not None else None
-    code_ignore_patterns = []
-    if config.code is not None and config.code != PRINT_ALL_CODE:
-        code_ignore_patterns = config.code.split('|')
+    files_to_print_code = [] if config.code else None
+    
+    exclude_patterns = config.exclude.split('|') if config.exclude else []
     
     stats = {'dirs': 0, 'files': 0}
     
@@ -143,7 +141,7 @@ def generate_directory_tree(config):
         config=config,
         output_lines=output_lines,
         files_to_print_code=files_to_print_code,
-        code_ignore_patterns=code_ignore_patterns,
+        exclude_patterns=exclude_patterns,
         current_depth=0,
         stats=stats,
         gitignore_spec=gitignore_spec
@@ -158,7 +156,7 @@ def generate_directory_tree(config):
     
     return "\n".join(output_lines)
 
-def _walk_directory(path, prefix, config, output_lines, files_to_print_code, code_ignore_patterns, current_depth, stats, gitignore_spec):
+def _walk_directory(path, prefix, config, output_lines, files_to_print_code, exclude_patterns, current_depth, stats, gitignore_spec):
     """Recursively walks the directory and appends formatted lines to output_lines."""
     if config.level != -1 and current_depth >= config.level:
         return
@@ -213,27 +211,24 @@ def _walk_directory(path, prefix, config, output_lines, files_to_print_code, cod
                 size = os.path.getsize(full_path)
                 line += f"  \033[38;5;240m[{_get_human_readable_size(size)}]\033[0m"
             except OSError:
-                pass 
+                pass
         
         output_lines.append(line)
 
         if files_to_print_code is not None and os.path.isfile(full_path):
-            ## FIX ##: This is the new, more robust logic for identifying code files.
             is_code_file = False
             ext = os.path.splitext(entry)[1]
             
-            # 1. Standard check for extensions like '.py', '.js'
-            if ext in CODE_EXTENSIONS:
-                is_code_file = True
-            # 2. Check for exact filenames like '.gitignore', '.env' which are in the set
-            elif entry in CODE_EXTENSIONS:
-                is_code_file = True
-            # 3. Check for extension-less files like 'Dockerfile' by comparing against the set
-            elif not ext and f".{entry.lower()}" in CODE_EXTENSIONS:
+            if ext in CODE_EXTENSIONS or entry in CODE_EXTENSIONS or (not ext and f".{entry.lower()}" in CODE_EXTENSIONS):
                 is_code_file = True
 
             if is_code_file:
-                if not any(fnmatch.fnmatch(entry, pat) for pat in code_ignore_patterns):
+                is_excluded = False
+                relative_path = os.path.relpath(full_path, config.root_path).replace(os.sep, '/')
+                if any(fnmatch.fnmatch(relative_path, pat) for pat in exclude_patterns):
+                    is_excluded = True
+
+                if not is_excluded:
                     files_to_print_code.append(full_path)
         
         if os.path.isdir(full_path):
@@ -244,7 +239,7 @@ def _walk_directory(path, prefix, config, output_lines, files_to_print_code, cod
                 config=config,
                 output_lines=output_lines,
                 files_to_print_code=files_to_print_code,
-                code_ignore_patterns=code_ignore_patterns,
+                exclude_patterns=exclude_patterns,
                 current_depth=current_depth + 1,
                 stats=stats,
                 gitignore_spec=gitignore_spec
@@ -259,20 +254,17 @@ Examples:
   # Generate a tree for the current folder
   treely
 
-  # Use the project's .gitignore to automatically exclude files
+  # Use the project's .gitignore to automatically exclude files from the tree
   treely --use-gitignore
 
-  # Generate a tree 2 levels deep and save it to a file
-  treely -L 2 -o my_project_tree.md
+  # Show the tree and the content of all code files
+  treely --code
 
-  # Show file sizes and a summary of contents
-  treely --show-size -s
+  # Show code content, but exclude all files in 'lib' and 'custom' directories
+  treely --code --exclude "lib/*|custom/*"
 
-  # Show tree and copy all code content to clipboard, ignoring 'node_modules'
-  treely --ignore "node_modules" --code -c
-
-  # Show only python files, print their content (except config.py), and copy
-  treely --pattern "*.py" --code "config.py" -c
+  # Show code, but exclude all HTML files and a specific JS file
+  treely --code --exclude "*.html|panel.js"
 """
     )
 
@@ -280,16 +272,23 @@ Examples:
     parser.add_argument('-a', '--all', action='store_true', help="Show all items, including hidden ones (e.g., '.git').")
     parser.add_argument('-L', '--level', type=int, default=-1, metavar='LEVEL', help="How many folders deep to look (e.g., -L 2).")
     parser.add_argument('--pattern', type=str, metavar='PATTERN', help="Show only files/folders that match a pattern (e.g., \"*.py\").")
-    parser.add_argument('--ignore', type=str, metavar='PATTERNS', help="Don't show items matching a pattern. Use '|' to separate (e.g., \"__pycache__|*.tmp\").")
-    parser.add_argument('--code', nargs='?', const=PRINT_ALL_CODE, default=None, metavar='IGNORE_PATTERNS', help="Display code file content after the tree. Use alone for all code, or with patterns to exclude (e.g., --code \"file1.py|file2.js\").")
+    parser.add_argument('--ignore', type=str, metavar='PATTERNS', help="Don't show items matching a pattern in the tree. Use '|' to separate.")
     
-    parser.add_argument('--use-gitignore', action='store_true', help="Automatically ignore files and directories listed in .gitignore.")
+    # --- MODIFIED ARGUMENTS ---
+    parser.add_argument('--code', action='store_true', help="Display the content of all detected code files after the tree.")
+    parser.add_argument('--exclude', type=str, metavar='PATTERNS', help="When using --code, exclude files/folders from the code output.\nUse '|' to separate patterns (e.g., \"lib/*|*.log|file.js\").")
+    
+    parser.add_argument('--use-gitignore', action='store_true', help="Automatically ignore files/dirs from the tree listed in .gitignore.")
     parser.add_argument('-s', '--summary', action='store_true', help="Print a summary of the number of directories and files.")
     parser.add_argument('--show-size', action='store_true', help="Display the size of each file.")
-    parser.add_argument('-o', '--output', nargs='?', const=DEFAULT_OUTPUT_FILENAME, default=None, metavar='FILENAME', help="Save the output to a file. Defaults to 'treely_output.txt' if no name is given. Banner and colors are excluded.")
-    parser.add_argument('-c', '--copy', action='store_true', help="Copy the output to the clipboard. Banner and colors are excluded.")
+    parser.add_argument('-o', '--output', nargs='?', const=DEFAULT_OUTPUT_FILENAME, default=None, metavar='FILENAME', help="Save output to a file. Defaults to 'treely_output.txt'. Banner/colors are excluded.")
+    parser.add_argument('-c', '--copy', action='store_true', help="Copy output to the clipboard. Banner/colors are excluded.")
     
     args = parser.parse_args()
+    
+    # --- NEW VALIDATION LOGIC ---
+    if args.exclude and not args.code:
+        parser.error("The --exclude argument can only be used when --code is also specified.")
     
     if args.copy and not pyperclip:
         print("\033[31mError: 'pyperclip' is not installed. Please run 'pip install pyperclip' to use the --copy feature.\033[0m", file=sys.stderr)

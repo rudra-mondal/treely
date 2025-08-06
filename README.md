@@ -16,7 +16,7 @@ It's the perfect tool for scaffolding a project's structure for documentation, p
 ## 🌟 Key Features
 
 *   **Elegant Tree Structure:** Generates a clean, easy-to-read directory tree with colorful output.
-*   **Intelligent Code Printing:** Use the `--code` flag to display the full contents of all relevant code files directly after the tree structure.
+*   **Powerful Code Context:** Use `--code` to print all relevant code, and then use the `--exclude` flag to surgically remove files, directories, or patterns (like `lib/*` or `*.log`) from the code output without hiding them from the tree.
 *   **Automatic `.gitignore` Support:** The `--use-gitignore` flag intelligently and automatically excludes files and directories specified in your `.gitignore` file. No more manual `--ignore` flags for `node_modules` or `dist`!
 *   **Export & Share:**
     *   **Copy to Clipboard (`-c`):** Instantly copy the entire tree and code output to your clipboard, perfect for pasting into LLM prompts (like GPT), GitHub issues, or pull requests.
@@ -24,7 +24,7 @@ It's the perfect tool for scaffolding a project's structure for documentation, p
 *   **Advanced Filtering & Display:**
     *   Limit the tree depth (`-L`).
     *   Filter by glob patterns (`--pattern`).
-    *   Manually ignore files and directories (`--ignore`).
+    *   Ignore files and directories from the tree (`--ignore`).
     *   Display file sizes (`--show-size`).
     *   Get a project summary (`-s`).
 *   **Cross-Platform:** Works seamlessly on Windows, macOS, and Linux.
@@ -55,10 +55,10 @@ treely /path/to/your/project
 
 ### Command-line Options
 
+This is the output from `treely --help`, showing the new, simplified flags.
+
 ```
-usage: treely [-h] [-a] [-L LEVEL] [--pattern PATTERN] [--ignore PATTERNS] [--code [IGNORE_PATTERNS]] [--use-gitignore] [-s]
-              [--show-size] [-o [FILENAME]] [-c]
-              [root_path]
+usage: treely [-h] [-a] [-L LEVEL] [--pattern PATTERN] [--ignore PATTERNS] [--code] [--exclude PATTERNS] [--use-gitignore] [-s] [--show-size] [-o [FILENAME]] [-c] [root_path]
 
 A beautiful and professional directory tree generator.
 
@@ -71,59 +71,39 @@ options:
   -L LEVEL, --level LEVEL
                         How many folders deep to look (e.g., -L 2).
   --pattern PATTERN     Show only files/folders that match a pattern (e.g., "*.py").
-  --ignore PATTERNS     Don't show items matching a pattern. Use '|' to separate (e.g., "__pycache__|*.tmp").
-  --code [IGNORE_PATTERNS]
-                        Display code file content after the tree. Use alone for all code, or with patterns to exclude (e.g., --code
-                        "file1.py|file2.js").
-  --use-gitignore       Automatically ignore files and directories listed in .gitignore.
+  --ignore PATTERNS     Don't show items matching a pattern in the tree. Use '|' to separate.
+  --code                Display the content of all detected code files after the tree.
+  --exclude PATTERNS    When using --code, exclude files/folders from the code output.
+                        Use '|' to separate patterns (e.g., "lib/*|*.log|file.js").
+  --use-gitignore       Automatically ignore files/dirs from the tree listed in .gitignore.
   -s, --summary         Print a summary of the number of directories and files.
   --show-size           Display the size of each file.
   -o [FILENAME], --output [FILENAME]
-                        Save the output to a file. Defaults to 'treely_output.txt' if no name is given. Banner and colors are excluded.
-  -c, --copy            Copy the output to the clipboard. Banner and colors are excluded.
+                        Save output to a file. Defaults to 'treely_output.txt'. Banner/colors are excluded.
+  -c, --copy            Copy output to the clipboard. Banner/colors are excluded.
 
 Examples:
   # Generate a tree for the current folder
   treely
 
-  # Use the project's .gitignore to automatically exclude files
+  # Use the project's .gitignore to automatically exclude files from the tree
   treely --use-gitignore
 
-  # Generate a tree 2 levels deep and save it to a file
-  treely -L 2 -o my_project_tree.md
+  # Show the tree and the content of all code files
+  treely --code
 
-  # Show file sizes and a summary of contents
-  treely --show-size -s
+  # Show code content, but exclude all files in 'lib' and 'custom' directories
+  treely --code --exclude "lib/*|custom/*"
 
-  # Show tree and copy all code content to clipboard, ignoring 'node_modules'
-  treely --ignore "node_modules" --code -c
-
-  # Show only python files, print their content (except config.py), and copy
-  treely --pattern "*.py" --code "config.py" -c
+  # Show code, but exclude all HTML files and a specific JS file
+  treely --code --exclude "*.html|panel.js"
 ```
 
 ## ✨ Workflow Examples
 
-Let's use the following project structure for our examples. The `.gitignore` file contains `node_modules/` and `.env`.
-
-```
-my-web-app/
-├── .git/
-├── node_modules/
-│   └── ... (many files)
-├── public/
-│   └── index.html
-├── src/
-│   ├── App.js
-│   └── index.js
-├── .env
-├── .gitignore
-└── package.json
-```
-
 ### 1. The Smart Default: Using `.gitignore`
 
-This is the recommended way to get a clean overview of any project. `treely` will read your `.gitignore` and automatically exclude `node_modules/` and `.env`.
+This is the recommended way to get a clean overview of any project. `treely` will read your `.gitignore` and automatically exclude `node_modules/` and `.env` from the tree.
 
 **Command:**
 ```bash
@@ -132,7 +112,6 @@ treely my-web-app --use-gitignore
 
 **Output:**
 ```
-... (banner) ...
 my-web-app/
 ├── public/
 │   └── index.html
@@ -142,11 +121,11 @@ my-web-app/
 ├── .gitignore
 └── package.json
 ```
-Notice how `.git`, `node_modules`, and `.env` are all gone with one simple flag!
+Notice how `.git` and `node_modules` are all gone with one simple flag!
 
 ### 2. Create Project Documentation
 
-Generate a complete project overview with file sizes and a summary, and save it directly to a Markdown file. This is perfect for a `README` or project wiki.
+Generate a complete project overview with file sizes and a summary, and save it directly to a Markdown file.
 
 **Command:**
 ```bash
@@ -159,21 +138,7 @@ treely my-web-app --use-gitignore --show-size -s -o project_structure.md
 ✔ Output successfully saved to project_structure.md
 ```
 
-**Contents of `project_structure.md`:**
-```
-my-web-app/
-├── public/
-│   └── index.html  [345B]
-├── src/
-│   ├── App.js  [512B]
-│   └── index.js  [230B]
-├── .gitignore  [15B]
-└── package.json  [780B]
-
-2 directories, 5 files
-```
-
-### 3. Prepare an AI/LLM Prompt
+### 3. Prepare a Basic AI/LLM Prompt
 
 This is `treely`'s superpower. Generate a complete project context (structure and all relevant code) and copy it directly to your clipboard. You are now ready to paste it into ChatGPT, Claude, or any other LLM.
 
@@ -187,20 +152,35 @@ treely my-web-app --use-gitignore --code -c
 ... (banner) ...
 ✔ Tree structure copied to clipboard.
 ```
+Your clipboard now contains the full tree and the contents of `index.html`, `App.js`, `index.js`, `.gitignore`, and `package.json`, perfectly formatted.
 
-Your clipboard now contains the full tree and the contents of `index.html`, `App.js`, `index.js`, and `package.json`, perfectly formatted.
+### 4. Advanced Prompting with Exclusions
 
-### 4. Advanced Filtering and Code View
+Imagine you want to provide context about a project, but you want to exclude boilerplate, libraries, or irrelevant files from the code output to save tokens and focus the AI's attention. This is where `--exclude` shines.
 
-Generate a tree showing only JavaScript files and print their contents, but exclude `index.js` from the code output.
+Let's use this structure:
+```
+Silence Cutter/
+├── CSXS/
+│   └── manifest.xml
+├── custom/
+│   └── Mp3.epr
+├── lib/
+│   ├── CSInterface.js
+│   └── Vulcan.js
+├── .debug
+└── panel.js
+```
+
+**Goal:** Get the code for the project, but exclude the entire `lib` directory and the specific `Mp3.epr` file.
 
 **Command:**
 ```bash
-treely my-web-app --pattern "*.js" --code "index.js"
+treely "Silence Cutter/" --code --exclude "lib/*|custom/Mp3.epr"
 ```
 
-**Output:**
-This will show a tree with only `App.js` and `index.js`, but the `--- FILE CONTENTS ---` section will only contain the code for `App.js`.
+**Result:**
+The output will show the complete directory tree, including `lib/` and `custom/`. However, the `--- FILE CONTENTS ---` section will intelligently skip the code for `CSInterface.js`, `Vulcan.js`, and `Mp3.epr`, giving you a cleaner, more focused result.
 
 ## 🤝 Contributing
 

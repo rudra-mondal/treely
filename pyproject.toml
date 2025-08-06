@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 # The name used for 'pip install treely'
 name = "treely"
-version = "1.1.0"
+version = "1.1.1"
 authors = [
     { name="Rudra Mondal", email="rudramondal815@gmail.com" },
 ]
