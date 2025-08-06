@@ -22,8 +22,8 @@ classifiers = [
 ]
 keywords = ["tree", "treely", "directory", "cli", "tool", "generator", "structure", "dirtree", "treegen", "foldertree"]
 dependencies = [
-    "pyperclip=1.8.2",
-    "pathspec=0.12.1",
+    "pyperclip>=1.8.2",
+    "pathspec>=0.12.1",
 ]
 
 [project.urls]
