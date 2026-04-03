@@ -144,7 +144,8 @@ def generate_directory_tree(config):
         exclude_patterns=exclude_patterns,
         current_depth=0,
         stats=stats,
-        gitignore_spec=gitignore_spec
+        gitignore_spec=gitignore_spec,
+        current_relative_path=""
     )
     
     if config.summary:
@@ -156,8 +157,11 @@ def generate_directory_tree(config):
     
     return "\n".join(output_lines)
 
-def _walk_directory(path, prefix, config, output_lines, files_to_print_code, exclude_patterns, current_depth, stats, gitignore_spec):
+def _walk_directory(path, prefix, config, output_lines, files_to_print_code, exclude_patterns, current_depth, stats, gitignore_spec, current_relative_path=""):
     """Recursively walks the directory and appends formatted lines to output_lines."""
+    # Optimization: os.path.relpath is very slow in hot loops.
+    # We track current_relative_path as a string instead.
+
     if config.level != -1 and current_depth >= config.level:
         return
 
@@ -174,8 +178,12 @@ def _walk_directory(path, prefix, config, output_lines, files_to_print_code, exc
         full_path = os.path.join(path, entry)
         
         if gitignore_spec:
-            relative_path = os.path.relpath(full_path, config.root_path)
-            if gitignore_spec.match_file(relative_path.replace(os.sep, '/')):
+            if current_relative_path:
+                relative_path = current_relative_path + "/" + entry
+            else:
+                relative_path = entry
+
+            if gitignore_spec.match_file(relative_path):
                 continue
         
         if any(fnmatch.fnmatch(entry, pat) for pat in ignore_patterns):
@@ -224,7 +232,11 @@ def _walk_directory(path, prefix, config, output_lines, files_to_print_code, exc
 
             if is_code_file:
                 is_excluded = False
-                relative_path = os.path.relpath(full_path, config.root_path).replace(os.sep, '/')
+                if current_relative_path:
+                    relative_path = current_relative_path + "/" + entry
+                else:
+                    relative_path = entry
+
                 if any(fnmatch.fnmatch(relative_path, pat) for pat in exclude_patterns):
                     is_excluded = True
 
@@ -233,6 +245,7 @@ def _walk_directory(path, prefix, config, output_lines, files_to_print_code, exc
         
         if os.path.isdir(full_path):
             new_prefix = prefix + ("    " if is_last_entry else "│   ")
+            new_rel_path = current_relative_path + "/" + entry if current_relative_path else entry
             _walk_directory(
                 path=full_path,
                 prefix=new_prefix,
@@ -242,7 +255,8 @@ def _walk_directory(path, prefix, config, output_lines, files_to_print_code, exc
                 exclude_patterns=exclude_patterns,
                 current_depth=current_depth + 1,
                 stats=stats,
-                gitignore_spec=gitignore_spec
+                gitignore_spec=gitignore_spec,
+                current_relative_path=new_rel_path
             )
 
 def main():

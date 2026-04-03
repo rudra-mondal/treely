@@ -1,0 +1,3 @@
+## 2024-05-15 - os.path.relpath Bottleneck in Directory Traversal
+**Learning:** Calling `os.path.relpath` inside a hot loop (like a recursive directory walker) is a significant performance bottleneck. In `treely`, it was called for every single file to check against `.gitignore` and exclude patterns, taking up a large portion of the execution time.
+**Action:** When walking a directory recursively, pass the current relative path down as a string parameter and use simple string concatenation (e.g., `current_relative_path + "/" + entry`) instead of repeatedly calling `os.path.relpath(full_path, root)`.
