@@ -297,6 +297,10 @@ Examples:
         print("\033[31mError: 'pathspec' is not installed. Please run 'pip install pathspec' to use the --use-gitignore feature.\033[0m", file=sys.stderr)
         sys.exit(1)
 
+    if not os.path.exists(args.root_path) or not os.path.isdir(args.root_path):
+        print(f"\033[31mError: The path '{args.root_path}' does not exist or is not a directory.\033[0m", file=sys.stderr)
+        sys.exit(1)
+
     print_banner()
     time.sleep(0.5)
 
