@@ -1,345 +1,286 @@
+"""
+treely.main
+~~~~~~~~~~~
+Thin CLI entry point.  Parses arguments, loads the config file, assembles
+a ``TreeConfig``, drives walking + rendering, and routes output.
+
+All heavy logic lives in the other modules; this file should stay ~100 lines.
+"""
+from __future__ import annotations
+
 import os
-import time
 import sys
 import argparse
-import fnmatch
-import re
+from pathlib import Path
 
-# --- Constants ---
-CODE_EXTENSIONS = {
-    '.py',    # Python
-    '.js',    # JavaScript
-    '.ts',    # TypeScript
-    '.jsx',   # React JSX
-    '.tsx',   # React TSX
-    '.html',  # HTML
-    '.htm',   # HTML (alternate)
-    '.css',   # CSS
-    '.scss',  # Sass
-    '.less',  # Less CSS
-    '.java',  # Java
-    '.c',     # C
-    '.cpp',   # C++
-    '.h',     # C Header
-    '.hpp',   # C++ Header
-    '.cs',    # C#
-    '.go',    # Go
-    '.rs',    # Rust
-    '.php',   # PHP
-    '.rb',    # Ruby
-    '.kt',    # Kotlin
-    '.swift', # Swift
-    '.m',     # Objective-C
-    '.mm',    # Objective-C++
-    '.dart',  # Dart (Flutter)
-    '.scala', # Scala
-    '.lua',   # Lua
-    '.pl',    # Perl
-    '.sh',    # Shell script
-    '.bash',  # Bash script
-    '.bat',   # Batch (Windows)
-    '.ps1',   # PowerShell
-    '.sql',   # SQL
-    '.xml',   # XML
-    '.json',  # JSON
-    '.yaml',  # YAML
-    '.yml',   # YAML (alternate)
-    '.toml',  # TOML
-    '.ini',   # INI config
-    '.env',   # Env config
-    '.md',    # Markdown
-    '.rst',   # reStructuredText
-    '.tex',   # LaTeX
-    '.cfg',   # Config file
-    '.conf',  # Config file
-    '.make',  # Makefile
-    '.mk',    # Makefile (alt)
-    '.dockerfile',  # Dockerfile (if saved as extension)
-    '.gradle',      # Gradle build
-    '.tsbuildinfo', # TypeScript build info
-    '.gitignore',   # Special case for dotfiles
-    '.debug',       # For Debuging files
-}
+from . import __version__
+from .config import TreeConfig
+from .config_file import apply_config_file, find_config_file, load_config_file
+from .filters import parse_size
+from .git import get_git_info
+from .output import (
+    check_pathspec,
+    check_pyperclip,
+    copy_to_clipboard,
+    print_banner,
+    write_to_file,
+)
+from .renderer import Renderer
+from .theme import THEME_NAMES
+from .walker import walk
 
 DEFAULT_OUTPUT_FILENAME = "treely_output.txt"
 
-# Optional dependency handling
-try:
-    import pyperclip
-except ImportError:
-    pyperclip = None
-try:
-    import pathspec
-except ImportError:
-    pathspec = None
 
-def print_banner():
-    banner_lines = [
-        "  _______            _       ",
-        " |__   __|          | |      ",
-        "    | |_ __ ___  ___| |_   _ ",
-        "    | | '__/ _ \\/ _ \\ | | | |",
-        "    | | | |  __/  __/ | |_| |",
-        "    |_|_|  \\___|\\___|_|\\__, |",
-        "                        __/ |",
-        "                       |___/ "
-    ]
-    for line in banner_lines:
-        print("\033[32m" + line + "\033[0m")
-        time.sleep(0.01)
+# ── Argument parser ────────────────────────────────────────────────────────────
 
-def _strip_ansi_codes(text):
-    """Removes ANSI escape sequences from a string."""
-    return re.sub(r'\x1b\[[0-9;]*m', '', text)
-
-def _get_human_readable_size(size, precision=1):
-    """Converts a size in bytes to a human-readable format (K, M, G)."""
-    suffixes = ['B', 'K', 'M', 'G', 'T']
-    suffix_index = 0
-    while size > 1024 and suffix_index < 4:
-        suffix_index += 1
-        size /= 1024.0
-    return f"{size:.{precision}f}{suffixes[suffix_index]}"
-
-def _add_file_contents_to_lines(file_list, output_lines):
-    """Appends formatted file contents to the output lines list."""
-    if not file_list:
-        return
-    output_lines.append("\n" * 2 + "\033[1;36m" + "--- FILE CONTENTS ---" + "\033[0m")
-    for file_path in file_list:
-        relative_path = os.path.relpath(file_path)
-        output_lines.append("\n\n" + "\033[1;34m" + f"--- {relative_path} ---" + "\033[0m")
-        try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                output_lines.append(f.read())
-        except Exception as e:
-            output_lines.append("\033[31m" + f"[Error reading file: {e}]" + "\033[0m")
-
-def generate_directory_tree(config):
-    """
-    Generates the complete output string for the directory tree and file contents.
-    """
-    output_lines = []
-    files_to_print_code = [] if config.code else None
-    
-    exclude_patterns = config.exclude.split('|') if config.exclude else []
-    
-    stats = {'dirs': 0, 'files': 0}
-    
-    gitignore_spec = None
-    if config.use_gitignore:
-        gitignore_path = os.path.join(config.root_path, '.gitignore')
-        if os.path.exists(gitignore_path):
-            with open(gitignore_path, 'r') as f:
-                gitignore_spec = pathspec.PathSpec.from_lines('gitwildmatch', f)
-
-    output_lines.append(f"{os.path.basename(config.root_path)}/")
-
-    _walk_directory(
-        path=config.root_path,
-        prefix="",
-        config=config,
-        output_lines=output_lines,
-        files_to_print_code=files_to_print_code,
-        exclude_patterns=exclude_patterns,
-        current_depth=0,
-        stats=stats,
-        gitignore_spec=gitignore_spec,
-        current_relative_path=""
-    )
-    
-    if config.summary:
-        output_lines.append("")
-        output_lines.append(f"{stats['dirs']} directories, {stats['files']} files")
-
-    if files_to_print_code:
-        _add_file_contents_to_lines(files_to_print_code, output_lines)
-    
-    return "\n".join(output_lines)
-
-def _walk_directory(path, prefix, config, output_lines, files_to_print_code, exclude_patterns, current_depth, stats, gitignore_spec, current_relative_path=""):
-    """Recursively walks the directory and appends formatted lines to output_lines."""
-    # Optimization: os.path.relpath is very slow in hot loops.
-    # We track current_relative_path as a string instead.
-
-    if config.level != -1 and current_depth >= config.level:
-        return
-
-    try:
-        entries = os.listdir(path)
-    except PermissionError:
-        output_lines.append(prefix + "└── " + "\033[31m[Permission Denied]\033[0m")
-        return
-
-    filtered_entries = []
-    ignore_patterns = config.ignore.split('|') if config.ignore else []
-
-    for entry in entries:
-        full_path = os.path.join(path, entry)
-        
-        if gitignore_spec:
-            if current_relative_path:
-                relative_path = current_relative_path + "/" + entry
-            else:
-                relative_path = entry
-
-            if gitignore_spec.match_file(relative_path):
-                continue
-        
-        if any(fnmatch.fnmatch(entry, pat) for pat in ignore_patterns):
-            continue
-        if config.pattern and not fnmatch.fnmatch(entry, config.pattern):
-            continue
-            
-        if not config.all and ((os.path.isdir(full_path) and entry.startswith('.')) or entry == '__pycache__'):
-            continue
-            
-        filtered_entries.append(entry)
-
-    dirs = sorted([e for e in filtered_entries if os.path.isdir(os.path.join(path, e))])
-    files = sorted([e for e in filtered_entries if not os.path.isdir(os.path.join(path, e))])
-    combined = dirs + files
-
-    for index, entry in enumerate(combined):
-        full_path = os.path.join(path, entry)
-        is_last_entry = (index == len(combined) - 1)
-        connector = "└── " if is_last_entry else "├── "
-        
-        if os.path.isdir(full_path):
-            stats['dirs'] += 1
-            name = entry + "/"
-        else:
-            stats['files'] += 1
-            name = entry
-        
-        line = f"{prefix}{connector}{name}"
-
-        if os.path.isfile(full_path) and config.show_size:
-            try:
-                size = os.path.getsize(full_path)
-                line += f"  \033[38;5;240m[{_get_human_readable_size(size)}]\033[0m"
-            except OSError:
-                pass
-        
-        output_lines.append(line)
-
-        if files_to_print_code is not None and os.path.isfile(full_path):
-            is_code_file = False
-            ext = os.path.splitext(entry)[1]
-            
-            if ext in CODE_EXTENSIONS or entry in CODE_EXTENSIONS or (not ext and f".{entry.lower()}" in CODE_EXTENSIONS):
-                is_code_file = True
-
-            if is_code_file:
-                is_excluded = False
-                if current_relative_path:
-                    relative_path = current_relative_path + "/" + entry
-                else:
-                    relative_path = entry
-
-                if any(fnmatch.fnmatch(relative_path, pat) for pat in exclude_patterns):
-                    is_excluded = True
-
-                if not is_excluded:
-                    files_to_print_code.append(full_path)
-        
-        if os.path.isdir(full_path):
-            new_prefix = prefix + ("    " if is_last_entry else "│   ")
-            new_rel_path = current_relative_path + "/" + entry if current_relative_path else entry
-            _walk_directory(
-                path=full_path,
-                prefix=new_prefix,
-                config=config,
-                output_lines=output_lines,
-                files_to_print_code=files_to_print_code,
-                exclude_patterns=exclude_patterns,
-                current_depth=current_depth + 1,
-                stats=stats,
-                gitignore_spec=gitignore_spec,
-                current_relative_path=new_rel_path
-            )
-
-def main():
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
+        prog="treely",
         description="A beautiful and professional directory tree generator.",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog="""
 Examples:
-  # Generate a tree for the current folder
-  treely
-
-  # Use the project's .gitignore to automatically exclude files from the tree
-  treely --use-gitignore
-
-  # Show the tree and the content of all code files
-  treely --code
-
-  # Show code content, but exclude all files in 'lib' and 'custom' directories
-  treely --code --exclude "lib/*|custom/*"
-
-  # Show code, but exclude all HTML files and a specific JS file
-  treely --code --exclude "*.html|panel.js"
-"""
+  treely                                   # tree for current directory
+  treely --use-gitignore                   # auto-exclude .gitignore'd files
+  treely --code --copy                     # dump code to clipboard for LLM
+  treely --code --exclude "lib/*|*.log"    # code output with exclusions
+  treely --format json                     # machine-readable JSON output
+  treely --format markdown -o STRUCTURE.md # save markdown
+  treely --profile llm                     # run a saved profile from config
+  treely --theme nord                      # use the Nord colour theme
+""",
     )
 
-    parser.add_argument('root_path', nargs='?', default=os.getcwd(), help="The starting folder for the tree. Uses current folder if not specified.")
-    parser.add_argument('-a', '--all', action='store_true', help="Show all items, including hidden ones (e.g., '.git').")
-    parser.add_argument('-L', '--level', type=int, default=-1, metavar='LEVEL', help="How many folders deep to look (e.g., -L 2).")
-    parser.add_argument('--pattern', type=str, metavar='PATTERN', help="Show only files/folders that match a pattern (e.g., \"*.py\").")
-    parser.add_argument('--ignore', type=str, metavar='PATTERNS', help="Don't show items matching a pattern in the tree. Use '|' to separate.")
-    
-    # --- MODIFIED ARGUMENTS ---
-    parser.add_argument('--code', action='store_true', help="Display the content of all detected code files after the tree.")
-    parser.add_argument('--exclude', type=str, metavar='PATTERNS', help="When using --code, exclude files/folders from the code output.\nUse '|' to separate patterns (e.g., \"lib/*|*.log|file.js\").")
-    
-    parser.add_argument('--use-gitignore', action='store_true', help="Automatically ignore files/dirs from the tree listed in .gitignore.")
-    parser.add_argument('-s', '--summary', action='store_true', help="Print a summary of the number of directories and files.")
-    parser.add_argument('--show-size', action='store_true', help="Display the size of each file.")
-    parser.add_argument('-o', '--output', nargs='?', const=DEFAULT_OUTPUT_FILENAME, default=None, metavar='FILENAME', help="Save output to a file. Defaults to 'treely_output.txt'. Banner/colors are excluded.")
-    parser.add_argument('-c', '--copy', action='store_true', help="Copy output to the clipboard. Banner/colors are excluded.")
-    
+    # ── Positional ────────────────────────────────────────────────────────────
+    parser.add_argument(
+        "root_path",
+        nargs="?",
+        default=os.getcwd(),
+        help="Starting directory (defaults to current directory).",
+    )
+
+    # ── Version ───────────────────────────────────────────────────────────────
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+
+    # ── Tree display ──────────────────────────────────────────────────────────
+    parser.add_argument("-a", "--all", action="store_true",
+                        help="Show hidden files and directories (e.g. '.git').")
+    parser.add_argument("-L", "--level", type=int, default=-1, metavar="LEVEL",
+                        help="Maximum depth to recurse (e.g. -L 2).")
+    parser.add_argument("--sort", choices=["name", "size", "mtime", "ext"],
+                        default="name", metavar="MODE",
+                        help="Sort order: name|size|mtime|ext (default: name).")
+    parser.add_argument("--dirs-only", action="store_true",
+                        help="Show only directories in the tree.")
+    parser.add_argument("--files-only", action="store_true",
+                        help="Show only files in the tree.")
+    parser.add_argument("--full-path", action="store_true",
+                        help="Print the full absolute path of each entry.")
+    parser.add_argument("--follow-symlinks", action="store_true",
+                        help="Follow symbolic links when recursing.")
+    parser.add_argument("--show-size", action="store_true",
+                        help="Display the size of each file.")
+    parser.add_argument("-s", "--summary", action="store_true",
+                        help="Print a count of directories and files.")
+
+    # ── Filtering ─────────────────────────────────────────────────────────────
+    parser.add_argument("--pattern", type=str, metavar="GLOB",
+                        help="Show only files matching a glob pattern (e.g. \"*.py\").")
+    parser.add_argument("--ignore", type=str, metavar="PATTERNS",
+                        help="Exclude entries matching pattern(s). Separate with '|'.")
+    parser.add_argument("--use-gitignore", action="store_true",
+                        help="Auto-exclude entries listed in .gitignore (including nested).")
+
+    # ── Code output ───────────────────────────────────────────────────────────
+    parser.add_argument("--code", action="store_true",
+                        help="Print the content of detected code files after the tree.")
+    parser.add_argument("--exclude", type=str, metavar="PATTERNS",
+                        help="When using --code, exclude paths from code output.\n"
+                             "Separate patterns with '|' (e.g. \"lib/*|*.log\").")
+    parser.add_argument("--max-size", type=str, metavar="SIZE",
+                        help="Skip files larger than SIZE in code output (e.g. 1M, 500K).")
+    parser.add_argument("--token-count", action="store_true",
+                        help="Estimate LLM token count of the full code output.")
+
+    # ── Git ───────────────────────────────────────────────────────────────────
+    parser.add_argument("--no-git", action="store_true",
+                        help="Disable git status annotations even inside a git repo.")
+
+    # ── Rendering ─────────────────────────────────────────────────────────────
+    parser.add_argument("--theme", choices=THEME_NAMES, default="default",
+                        metavar="THEME",
+                        help=f"Colour theme: {', '.join(THEME_NAMES)} (default: default).")
+    parser.add_argument("--no-color", action="store_true",
+                        help="Disable all colour output (auto-detected when piping).")
+    parser.add_argument("--no-banner", action="store_true",
+                        help="Suppress the startup banner and delay.")
+    parser.add_argument("--format", choices=["text", "json", "markdown"],
+                        default="text", metavar="FORMAT",
+                        help="Output format: text|json|markdown (default: text).")
+
+    # ── Output ────────────────────────────────────────────────────────────────
+    parser.add_argument("-o", "--output", nargs="?", const=DEFAULT_OUTPUT_FILENAME,
+                        default=None, metavar="FILENAME",
+                        help=f"Save output to a file (default name: {DEFAULT_OUTPUT_FILENAME}).")
+    parser.add_argument("-c", "--copy", action="store_true",
+                        help="Copy output to clipboard.")
+
+    # ── Config / profile ─────────────────────────────────────────────────────
+    parser.add_argument("--config", type=str, metavar="PATH",
+                        help="Path to a TOML config file.")
+    parser.add_argument("--profile", type=str, metavar="NAME",
+                        help="Run a named profile from the config file.")
+
+    return parser
+
+
+# ── Config assembly (precedence: CLI > profile > defaults > built-ins) ─────────
+
+def _build_config(args: argparse.Namespace) -> TreeConfig:
+    """Convert parsed CLI args + config file into a final TreeConfig."""
+    # Start from built-in defaults
+    config = TreeConfig()
+
+    # Load config file (if any)
+    config_path = find_config_file(args.config)
+    file_data = load_config_file(config_path) if config_path else {}
+
+    # Apply file defaults + profile FIRST (CLI args override these below)
+    config = apply_config_file(config, file_data, profile=args.profile)
+
+    # Map every CLI arg that was explicitly provided onto the config object.
+    # We iterate all known fields and take the CLI value if it was set.
+    # For booleans, "store_true" default is False — any True means "set".
+    cli_map = {
+        "root_path": args.root_path,
+        "all": args.all,
+        "level": args.level,
+        "sort": args.sort,
+        "dirs_only": args.dirs_only,
+        "files_only": args.files_only,
+        "full_path": args.full_path,
+        "follow_symlinks": args.follow_symlinks,
+        "show_size": args.show_size,
+        "summary": args.summary,
+        "pattern": args.pattern,
+        "ignore": args.ignore,
+        "use_gitignore": args.use_gitignore,
+        "code": args.code,
+        "exclude": args.exclude,
+        "max_size": args.max_size,
+        "token_count": args.token_count,
+        "no_git": args.no_git,
+        "theme": args.theme,
+        "no_color": args.no_color,
+        "no_banner": args.no_banner,
+        "format": args.format,
+        "output": args.output,
+        "copy": args.copy,
+        "profile": args.profile,
+        "config_path": args.config,
+    }
+    for field, value in cli_map.items():
+        # Only override if CLI actually changed the value from its argparse default
+        if value is not None and value is not False and field not in ("level",):
+            setattr(config, field, value)
+        elif field == "level" and value != -1:
+            setattr(config, field, value)
+        elif field == "level" and config.level == 0:
+            # keep config-file value if CLI left it at -1
+            pass
+        else:
+            # For booleans: CLI True always wins
+            if isinstance(value, bool) and value:
+                setattr(config, field, value)
+
+    # root_path is always taken from CLI (positional arg)
+    config.root_path = args.root_path
+
+    # Auto-detect no-color when output is not a TTY
+    if not sys.stdout.isatty():
+        config.no_color = True
+        config.no_banner = True
+
+    return config
+
+
+# ── Validation ────────────────────────────────────────────────────────────────
+
+def _validate(config: TreeConfig, parser: argparse.ArgumentParser) -> None:
+    """Run pre-flight validation checks. Calls parser.error() on failure."""
+    if config.exclude and not config.code:
+        parser.error("--exclude can only be used together with --code.")
+
+    if config.token_count and not config.code:
+        parser.error("--token-count can only be used together with --code.")
+
+    if config.max_size:
+        try:
+            parse_size(config.max_size)
+        except ValueError as exc:
+            parser.error(f"--max-size: {exc}")
+
+    if config.dirs_only and config.files_only:
+        parser.error("--dirs-only and --files-only cannot be used together.")
+
+    if not os.path.exists(config.root_path):
+        sys.stderr.write(
+            f"\033[31mError: The path '{config.root_path}' does not exist.\033[0m\n"
+        )
+        sys.exit(1)
+
+    if not os.path.isdir(config.root_path):
+        sys.stderr.write(
+            f"\033[31mError: '{config.root_path}' is not a directory.\033[0m\n"
+        )
+        sys.exit(1)
+
+    if config.copy:
+        check_pyperclip()
+
+    if config.use_gitignore:
+        check_pathspec()
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+def main() -> None:
+    parser = _build_parser()
     args = parser.parse_args()
-    
-    # --- NEW VALIDATION LOGIC ---
-    if args.exclude and not args.code:
-        parser.error("The --exclude argument can only be used when --code is also specified.")
-    
-    if args.copy and not pyperclip:
-        print("\033[31mError: 'pyperclip' is not installed. Please run 'pip install pyperclip' to use the --copy feature.\033[0m", file=sys.stderr)
-        sys.exit(1)
-    if args.use_gitignore and not pathspec:
-        print("\033[31mError: 'pathspec' is not installed. Please run 'pip install pathspec' to use the --use-gitignore feature.\033[0m", file=sys.stderr)
-        sys.exit(1)
 
-    if not os.path.exists(args.root_path) or not os.path.isdir(args.root_path):
-        print(f"\033[31mError: The path '{args.root_path}' does not exist or is not a directory.\033[0m", file=sys.stderr)
-        sys.exit(1)
+    config = _build_config(args)
+    _validate(config, parser)
 
-    print_banner()
-    time.sleep(0.5)
+    # ── Banner ────────────────────────────────────────────────────────────────
+    print_banner(no_banner=config.no_banner, no_color=config.no_color)
 
-    final_output = generate_directory_tree(args)
-
-    if args.copy:
-        clean_output = _strip_ansi_codes(final_output)
+    # ── Git status ────────────────────────────────────────────────────────────
+    git_status: dict = {}
+    if not config.no_git:
         try:
-            pyperclip.copy(clean_output)
-            print("\033[32m✔ Tree structure copied to clipboard.\033[0m")
-        except pyperclip.PyperclipException as e:
-            print(f"\033[31mError: Could not copy to clipboard: {e}\033[0m", file=sys.stderr)
-            sys.exit(1)
-    elif args.output:
-        filename = args.output
-        clean_output = _strip_ansi_codes(final_output)
-        try:
-            with open(filename, 'w', encoding='utf-8') as f:
-                f.write(clean_output)
-            print(f"\033[32m✔ Output successfully saved to {filename}\033[0m")
-        except IOError as e:
-            print(f"\033[31mError: Could not write to file {filename}: {e}\033[0m", file=sys.stderr)
-            sys.exit(1)
+            _in_repo, git_status = get_git_info(config.root_path)
+        except Exception:
+            pass  # git status is always best-effort
+
+    # ── Walk ──────────────────────────────────────────────────────────────────
+    root = Path(config.root_path)
+    result = walk(root, config, git_status)
+
+    # ── Render & Output ───────────────────────────────────────────────────────
+    renderer = Renderer(config)
+
+    if config.copy or config.output:
+        content = renderer.to_string(result)
+        if config.copy:
+            copy_to_clipboard(content)
+        if config.output:
+            write_to_file(content, config.output)
     else:
-        print(final_output)
+        renderer.to_console(result)
+
 
 if __name__ == "__main__":
     main()

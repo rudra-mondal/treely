@@ -1,6 +1,10 @@
-Update Workflow
-1. Change Code: Modify treely/main.py.
-2. Bump Version: Increment version in pyproject.toml.
-3. Update Docs: Edit README.md to reflect changes.
-4. Build: Run python -m build.
-5. Publish: Run twine upload dist/*
+Update Workflow (v2.0+)
+1. Change Code: Edit files in treely/ (walker.py, renderer.py, filters.py, etc.)
+2. Bump Version: Update __version__ in treely/__init__.py AND pyproject.toml.
+3. Update CHANGELOG: Add an entry to CHANGELOG.md.
+4. Update Docs: Edit README.md to reflect new flags / features.
+5. Run Tests: pytest tests/ --cov=treely
+6. Lint: ruff check treely/
+7. Build: python -m build
+8. Publish: twine upload dist/*
+   (or push a git tag vX.Y.Z to trigger the automated GitHub Actions publish workflow)
