@@ -257,3 +257,33 @@ class TestThemeFlag:
             capsys,
         )
         assert code == 0
+
+# ── Config Precedence (B-1 Fix coverage) ──────────────────────────────────────
+
+class TestConfigPrecedence:
+    def test_file_theme_not_overridden_by_default(self, simple_project, tmp_path):
+        config_file = tmp_path / "treely.toml"
+        config_file.write_text('[defaults]\ntheme = "nord"')
+        from treely.main import _build_config, _build_parser
+        parser = _build_parser()
+        args = parser.parse_args([str(simple_project), "--config", str(config_file)])
+        config = _build_config(args)
+        assert config.theme == "nord"
+
+    def test_file_sort_not_overridden_by_default(self, simple_project, tmp_path):
+        config_file = tmp_path / "treely.toml"
+        config_file.write_text('[defaults]\nsort = "mtime"')
+        from treely.main import _build_config, _build_parser
+        parser = _build_parser()
+        args = parser.parse_args([str(simple_project), "--config", str(config_file)])
+        config = _build_config(args)
+        assert config.sort == "mtime"
+
+    def test_explicit_cli_flag_overrides_file(self, simple_project, tmp_path):
+        config_file = tmp_path / "treely.toml"
+        config_file.write_text('[defaults]\ntheme = "nord"')
+        from treely.main import _build_config, _build_parser
+        parser = _build_parser()
+        args = parser.parse_args([str(simple_project), "--theme", "dark", "--config", str(config_file)])
+        config = _build_config(args)
+        assert config.theme == "dark"

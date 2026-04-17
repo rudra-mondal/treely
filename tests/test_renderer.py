@@ -169,3 +169,32 @@ class TestTokenCount:
         # Should contain digits
         import re
         assert re.search(r"\d+", out)
+
+class TestTokenCountConsole:
+    def test_to_console_token_count_correct_value(self, simple_project, capsys):
+        config = TreeConfig(
+            root_path=str(simple_project),
+            code=True,
+            token_count=True,
+            no_color=True,
+        )
+        result = walk(simple_project, config, {})
+        renderer = Renderer(config)
+        renderer.to_console(result)
+        out = capsys.readouterr().out
+        assert "tokens" in out.lower()
+
+class TestWindowsEncoding:
+    def test_rule_does_not_crash_with_ascii_only(self, simple_project, capsys):
+        config = TreeConfig(
+            root_path=str(simple_project),
+            code=True,
+            no_color=True,
+        )
+        result = walk(simple_project, config, {})
+        renderer = Renderer(config)
+        # Should not raise UnicodeEncodeError
+        renderer.to_console(result)
+        out = capsys.readouterr().out
+        # Rich safe_box degrades horizontal lines to ASCII or compatible
+        assert "FILE CONTENTS" in out

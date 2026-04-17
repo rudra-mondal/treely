@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from .config import TreeConfig
 
@@ -31,20 +31,16 @@ if sys.version_info >= (3, 11):
     _HAS_TOML = True
 else:
     try:
-        import tomllib  # type: ignore[no-redef]
+        import tomli as tomllib  # type: ignore[no-redef]
         _HAS_TOML = True
     except ImportError:
-        try:
-            import tomli as tomllib  # type: ignore[no-redef]
-            _HAS_TOML = True
-        except ImportError:
-            tomllib = None  # type: ignore[assignment]
-            _HAS_TOML = False
+        tomllib = None  # type: ignore[assignment]
+        _HAS_TOML = False
 
 
 # ── Config file discovery ─────────────────────────────────────────────────────
 
-def _default_config_paths() -> list[Path]:
+def _default_config_paths() -> List[Path]:
     """Return candidate config file paths in priority order."""
     cwd = Path.cwd()
     candidates = [
@@ -160,6 +156,6 @@ def apply_config_file(
     return config
 
 
-def list_profiles(file_data: Dict[str, Any]) -> list[str]:
+def list_profiles(file_data: Dict[str, Any]) -> List[str]:
     """Return the list of profile names defined in *file_data*."""
     return list(file_data.get("profiles", {}).keys())

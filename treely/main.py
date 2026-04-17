@@ -152,48 +152,13 @@ def _build_config(args: argparse.Namespace) -> TreeConfig:
     config = apply_config_file(config, file_data, profile=args.profile)
 
     # Map every CLI arg that was explicitly provided onto the config object.
-    # We iterate all known fields and take the CLI value if it was set.
-    # For booleans, "store_true" default is False — any True means "set".
-    cli_map = {
-        "root_path": args.root_path,
-        "all": args.all,
-        "level": args.level,
-        "sort": args.sort,
-        "dirs_only": args.dirs_only,
-        "files_only": args.files_only,
-        "full_path": args.full_path,
-        "follow_symlinks": args.follow_symlinks,
-        "show_size": args.show_size,
-        "summary": args.summary,
-        "pattern": args.pattern,
-        "ignore": args.ignore,
-        "use_gitignore": args.use_gitignore,
-        "code": args.code,
-        "exclude": args.exclude,
-        "max_size": args.max_size,
-        "token_count": args.token_count,
-        "no_git": args.no_git,
-        "theme": args.theme,
-        "no_color": args.no_color,
-        "no_banner": args.no_banner,
-        "format": args.format,
-        "output": args.output,
-        "copy": args.copy,
-        "profile": args.profile,
-        "config_path": args.config,
-    }
-    for field, value in cli_map.items():
-        # Only override if CLI actually changed the value from its argparse default
-        if value is not None and value is not False and field not in ("level",):
-            setattr(config, field, value)
-        elif field == "level" and value != -1:
-            setattr(config, field, value)
-        elif field == "level" and config.level == 0:
-            # keep config-file value if CLI left it at -1
-            pass
-        else:
-            # For booleans: CLI True always wins
-            if isinstance(value, bool) and value:
+    # We do this by checking if the value differs from the parser's default.
+    _parser_defaults = vars(_build_parser().parse_args([]))
+    cli_ns = vars(args)
+    for key, value in cli_ns.items():
+        if value != _parser_defaults.get(key):
+            field = key.replace("-", "_")
+            if hasattr(config, field) and field not in ("root_path", "profile", "config_path"):
                 setattr(config, field, value)
 
     # root_path is always taken from CLI (positional arg)

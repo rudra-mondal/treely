@@ -107,7 +107,7 @@ def _walk(
     filtered: List[str] = []
     for entry in raw_entries:
         full = path / entry
-        is_dir = os.path.isdir(str(full)) and not os.path.islink(str(full))
+        is_dir = full.is_dir()
 
         # Always-skip set (e.g. __pycache__, .DS_Store) - unless --all
         if entry in ALWAYS_SKIP and not config.all:

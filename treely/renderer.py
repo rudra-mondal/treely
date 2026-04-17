@@ -19,7 +19,7 @@ from __future__ import annotations
 import io
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from rich.console import Console
@@ -184,9 +184,23 @@ def _build_rich_tree(
 # ── Code section rendering ────────────────────────────────────────────────────
 
 def _read_file_safe(path: Path) -> str:
-    """Read *path* as UTF-8 text, replacing undecodable bytes."""
+    """Read *path* with robust encoding detection (UTF-16 BOM -> UTF-8)."""
     try:
-        return path.read_text(encoding="utf-8", errors="replace")
+        raw = path.read_bytes()
+        
+        # Check for UTF-16 / UTF-32 BOMs
+        if raw.startswith((b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")):
+            content = raw.decode("utf-32", errors="replace")
+        elif raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+            content = raw.decode("utf-16", errors="replace")
+        else:
+            content = raw.decode("utf-8", errors="replace")
+            
+        # Strip null bytes and replace the unicode replacement character
+        # with standard ASCII '?' to prevent Windows cp1252 crash loops.
+        return content.replace("\x00", "").replace("\ufffd", "?")
+    except MemoryError:
+        return "[Error: File too large to read into memory. Use --max-size to skip huge files]"
     except OSError as exc:
         return f"[Error reading file: {exc}]"
 
@@ -204,7 +218,7 @@ def _render_code_to_console(
 
     total_chars = 0
     console.print()
-    console.rule(Text("FILE CONTENTS", style=theme.header_style))
+    console.rule("FILE CONTENTS", style=theme.header_style)
 
     for file_path in code_files:
         try:
@@ -214,9 +228,7 @@ def _render_code_to_console(
         rel_str = str(rel).replace("\\", "/")
 
         console.print()
-        console.print(
-            Text(f"─── {rel_str} ", style=theme.file_header_style)
-        )
+        console.rule(f"[b]{rel_str}[/b]", style=theme.file_header_style, align="left")
 
         content = _read_file_safe(file_path)
         total_chars += len(content)
@@ -243,7 +255,7 @@ def _render_code_to_string(
     root_path: Path,
     config: TreeConfig,
     for_markdown: bool = False,
-) -> tuple[str, int]:
+) -> Tuple[str, int]:
     """Render code sections to a plain string. Returns (text, char_count)."""
     if not code_files:
         return "", 0
@@ -340,6 +352,7 @@ class Renderer:
         console = Console(
             no_color=cfg.no_color,
             highlight=False,
+            safe_box=True,
         )
 
         if _RICH_AVAILABLE:
@@ -368,9 +381,7 @@ class Renderer:
                 console,
             )
             if cfg.token_count:
-                tokens = estimate_tokens(char_count * " ")  # rough
-                # Recalculate correctly
-                tokens = char_count // 4
+                tokens = estimate_tokens(char_count)
                 console.print(
                     f"\n[dim]Estimated tokens: {format_token_count(tokens)}[/dim]"
                 )
@@ -456,7 +467,7 @@ class Renderer:
         data = _node_to_dict(result.root, self.config)
         json_str = json.dumps(data, indent=2, ensure_ascii=False)
         if _RICH_AVAILABLE and not self.config.no_color:
-            console = Console(highlight=False)
+            console = Console(highlight=False, safe_box=True)
             syntax = Syntax(json_str, "json", theme="monokai")
             console.print(syntax)
         else:
@@ -466,7 +477,7 @@ class Renderer:
         md_str = self.to_markdown(result)
         if _RICH_AVAILABLE and not self.config.no_color:
             from rich.markdown import Markdown
-            console = Console()
+            console = Console(safe_box=True)
             console.print(Markdown(md_str))
         else:
             print(md_str)

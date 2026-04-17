@@ -6,7 +6,7 @@ Shared utility helpers that don't belong to any specific module.
 from __future__ import annotations
 
 import re
-from typing import Optional
+from typing import Dict, Optional, Union
 
 
 # ── Size formatting ───────────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ def get_human_readable_size(size_bytes: int, precision: int = 1) -> str:
 
 # ── Language tag inference ────────────────────────────────────────────────────
 
-_EXT_TO_LANG: dict[str, str] = {
+_EXT_TO_LANG: Dict[str, str] = {
     ".py": "python", ".pyi": "python",
     ".js": "javascript", ".mjs": "javascript", ".cjs": "javascript",
     ".ts": "typescript", ".mts": "typescript",
@@ -80,7 +80,7 @@ _EXT_TO_LANG: dict[str, str] = {
     ".make": "makefile", ".mk": "makefile",
 }
 
-_NAME_TO_LANG: dict[str, str] = {
+_NAME_TO_LANG: Dict[str, str] = {
     "Dockerfile": "dockerfile",
     "Makefile": "makefile", "makefile": "makefile", "GNUmakefile": "makefile",
     ".gitignore": "gitignore",
@@ -112,12 +112,13 @@ def strip_ansi(text: str) -> str:
 
 # ── Token estimation ─────────────────────────────────────────────────────────
 
-def estimate_tokens(text: str) -> int:
+def estimate_tokens(text_or_count: Union[str, int]) -> int:
     """
-    Estimate the number of LLM tokens in *text*.
+    Estimate the number of LLM tokens in a string or character count.
     Uses the widely-cited rule of thumb: ~4 characters per token.
     """
-    return max(0, len(text) // 4)
+    count = text_or_count if isinstance(text_or_count, int) else len(text_or_count)
+    return max(0, count // 4)
 
 
 def format_token_count(count: int) -> str:

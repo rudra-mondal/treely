@@ -129,6 +129,14 @@ def is_binary_file(path: Path, sample_bytes: int = 8192) -> bool:
     try:
         with open(path, "rb") as fh:
             chunk = fh.read(sample_bytes)
+        if not chunk:
+            return False
+
+        # Allow standard UTF-16/32 text files (which intrinsically contain null bytes)
+        # by checking for common Byte Order Marks to declare them as safe text blobs
+        if chunk.startswith((b"\xff\xfe", b"\xfe\xff", b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")):
+            return False
+
         return b"\x00" in chunk
     except (OSError, IOError):
         return False

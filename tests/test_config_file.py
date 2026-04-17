@@ -199,3 +199,10 @@ class TestListProfiles:
 
     def test_empty_when_no_profiles_key(self):
         assert list_profiles({"defaults": {}}) == []
+
+# ── Import behaviour ──────────────────────────────────────────────────────────
+
+class TestTomlImport:
+    def test_has_toml_flag_set_correctly(self):
+        from treely.config_file import _HAS_TOML
+        assert _HAS_TOML is True

@@ -264,6 +264,26 @@ class TestSymlinks:
         link_node = next(c for c in result.root.children if c.name == "link_to_real")
         assert len(link_node.children) > 0
 
+    def test_symlink_dir_classified_as_dir_in_filter(self, symlink_project):
+        config = TreeConfig(root_path=str(symlink_project))
+        result = walk(symlink_project, config, {})
+        link_node = next(c for c in result.root.children if c.name == "link_to_real")
+        assert link_node.is_dir
+
+    def test_dirs_only_includes_symlinked_dirs(self, symlink_project):
+        config = TreeConfig(root_path=str(symlink_project), dirs_only=True)
+        result = walk(symlink_project, config, {})
+        names = [c.name for c in result.root.children]
+        # Should be included because it's a symlink to a directory
+        assert "link_to_real" in names
+
+    def test_files_only_excludes_symlinked_dirs(self, symlink_project):
+        config = TreeConfig(root_path=str(symlink_project), files_only=True)
+        result = walk(symlink_project, config, {})
+        names = [c.name for c in result.root.children]
+        # Should be excluded because it's a symlink to a directory, not a file
+        assert "link_to_real" not in names
+
 
 # ── Git status annotation ──────────────────────────────────────────────────────
 

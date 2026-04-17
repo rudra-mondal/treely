@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 
 # Status characters used in the tree (subset of git's XY codes)
@@ -22,7 +22,7 @@ GIT_STATUS_DELETED = "D"
 GIT_STATUS_IGNORED = "!"
 
 
-def _run(args: list[str], cwd: str, timeout: int = 5) -> Optional[str]:
+def _run(args: List[str], cwd: str, timeout: int = 5) -> Optional[str]:
     """Run a git sub-command and return stdout on success, else None."""
     try:
         result = subprocess.run(
