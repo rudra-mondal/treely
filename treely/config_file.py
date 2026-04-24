@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .config import TreeConfig
 
@@ -40,7 +40,7 @@ else:
 
 # ── Config file discovery ─────────────────────────────────────────────────────
 
-def _default_config_paths() -> List[Path]:
+def _default_config_paths() -> list[Path]:
     """Return candidate config file paths in priority order."""
     cwd = Path.cwd()
     candidates = [
@@ -60,7 +60,7 @@ def _default_config_paths() -> List[Path]:
     return candidates
 
 
-def find_config_file(explicit_path: Optional[str] = None) -> Optional[Path]:
+def find_config_file(explicit_path: str | None = None) -> Path | None:
     """
     Return the first existing config file path, or ``None`` if no config file
     is found.
@@ -76,7 +76,7 @@ def find_config_file(explicit_path: Optional[str] = None) -> Optional[Path]:
 
 # ── Reading ───────────────────────────────────────────────────────────────────
 
-def load_config_file(path: Path) -> Dict[str, Any]:
+def load_config_file(path: Path) -> dict[str, Any]:
     """
     Parse a TOML config file and return its contents as a dict.
     Returns an empty dict if TOML support is unavailable or parsing fails.
@@ -105,12 +105,12 @@ _SETTABLE_FIELDS = {
 }
 
 
-def _apply_section(config: TreeConfig, section: Dict[str, Any]) -> TreeConfig:
+def _apply_section(config: TreeConfig, section: dict[str, Any]) -> TreeConfig:
     """
     Copy keys from *section* into *config*'s matching fields.
     Keys not in ``_SETTABLE_FIELDS`` are silently ignored.
     """
-    mapping: Dict[str, Any] = {}
+    mapping: dict[str, Any] = {}
     for key, value in section.items():
         # Normalise dashes to underscores (e.g. no-color → no_color)
         field = key.replace("-", "_")
@@ -125,8 +125,8 @@ def _apply_section(config: TreeConfig, section: Dict[str, Any]) -> TreeConfig:
 
 def apply_config_file(
     config: TreeConfig,
-    file_data: Dict[str, Any],
-    profile: Optional[str] = None,
+    file_data: dict[str, Any],
+    profile: str | None = None,
 ) -> TreeConfig:
     """
     Apply ``[defaults]`` and optionally a named ``[profiles.<name>]`` section
@@ -156,6 +156,6 @@ def apply_config_file(
     return config
 
 
-def list_profiles(file_data: Dict[str, Any]) -> List[str]:
+def list_profiles(file_data: dict[str, Any]) -> list[str]:
     """Return the list of profile names defined in *file_data*."""
     return list(file_data.get("profiles", {}).keys())

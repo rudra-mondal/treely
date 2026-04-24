@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import Dict, List, Optional, Tuple
 
 # Status characters used in the tree (subset of git's XY codes)
 GIT_STATUS_MODIFIED = "M"
@@ -21,7 +20,7 @@ GIT_STATUS_DELETED = "D"
 GIT_STATUS_IGNORED = "!"
 
 
-def _run(args: List[str], cwd: str, timeout: int = 5) -> Optional[str]:
+def _run(args: list[str], cwd: str, timeout: int = 5) -> str | None:
     """Run a git sub-command and return stdout on success, else None."""
     try:
         result = subprocess.run(
@@ -36,7 +35,7 @@ def _run(args: List[str], cwd: str, timeout: int = 5) -> Optional[str]:
         return None
 
 
-def get_git_root(path: str) -> Optional[str]:
+def get_git_root(path: str) -> str | None:
     """
     Return the absolute git root directory for *path*, or ``None`` if *path*
     is not inside a git repository.
@@ -50,7 +49,7 @@ def is_git_repo(path: str) -> bool:
     return get_git_root(path) is not None
 
 
-def _parse_porcelain(output: str) -> Dict[str, str]:
+def _parse_porcelain(output: str) -> dict[str, str]:
     """
     Parse ``git status --porcelain`` output into a ``{path: status_char}`` map.
 
@@ -61,7 +60,7 @@ def _parse_porcelain(output: str) -> Dict[str, str]:
     - ``A`` added / staged new file
     - ``M`` everything else (modified, renamed, copied, …)
     """
-    status_map: Dict[str, str] = {}
+    status_map: dict[str, str] = {}
     for line in output.splitlines():
         if len(line) < 4:
             continue
@@ -90,7 +89,7 @@ def _parse_porcelain(output: str) -> Dict[str, str]:
     return status_map
 
 
-def get_git_info(root_path: str) -> Tuple[bool, Dict[str, str]]:
+def get_git_info(root_path: str) -> tuple[bool, dict[str, str]]:
     """
     Return ``(is_inside_repo, status_dict)`` for *root_path*.
 
@@ -123,7 +122,7 @@ def get_git_info(root_path: str) -> Tuple[bool, Dict[str, str]]:
         # Different drives on Windows — cannot relativize
         prefix = ""
 
-    adjusted: Dict[str, str] = {}
+    adjusted: dict[str, str] = {}
     for path, char in raw_map.items():
         if prefix:
             if path.startswith(prefix + "/"):

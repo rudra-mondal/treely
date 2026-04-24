@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
 
 
 @dataclass
@@ -19,14 +18,14 @@ class TreeNode:
     is_dir: bool
 
     # Populated during walking
-    children: List[TreeNode] = field(default_factory=list, repr=False)
-    size: Optional[int] = None          # bytes; None for dirs or on error
+    children: list[TreeNode] = field(default_factory=list, repr=False)
+    size: int | None = None          # bytes; None for dirs or on error
     is_symlink: bool = False
-    symlink_target: Optional[str] = None
-    git_status: Optional[str] = None    # 'M', 'A', '?', 'D', '!'
+    symlink_target: str | None = None
+    git_status: str | None = None    # 'M', 'A', '?', 'D', '!'
     is_binary: bool = False
     extension: str = ""                 # lower-case, e.g. ".py"
-    error: Optional[str] = None        # e.g. "[Permission Denied]"
+    error: str | None = None        # e.g. "[Permission Denied]"
 
     # ------------------------------------------------------------------ helpers
 
@@ -67,5 +66,5 @@ class WalkResult:
     """Everything returned by a single walk() call."""
 
     root: TreeNode
-    code_files: List[Path]
+    code_files: list[Path]
     stats: WalkStats

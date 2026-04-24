@@ -10,7 +10,7 @@ from __future__ import annotations
 import fnmatch
 import os
 from pathlib import Path
-from typing import Any, List, Optional, Set, Tuple
+from typing import Any
 
 try:
     import pathspec  # type: ignore[import]
@@ -20,7 +20,7 @@ except ImportError:
 
 # ── Code-file extension registry ─────────────────────────────────────────────
 
-CODE_EXTENSIONS: Set[str] = {
+CODE_EXTENSIONS: set[str] = {
     # Systems / compiled
     ".py", ".pyi",
     ".js", ".mjs", ".cjs",
@@ -89,7 +89,7 @@ CODE_EXTENSIONS: Set[str] = {
 }
 
 # Extension-less filenames that are always treated as code
-_CODE_NAMES: Set[str] = {
+_CODE_NAMES: set[str] = {
     "Makefile", "makefile", "GNUmakefile",
     "Dockerfile", "Containerfile",
     "Jenkinsfile", "Vagrantfile", "Procfile",
@@ -98,7 +98,7 @@ _CODE_NAMES: Set[str] = {
 }
 
 # Entries that are *always* hidden regardless of --all
-ALWAYS_SKIP: Set[str] = {"__pycache__", ".DS_Store", "Thumbs.db", ".git"}
+ALWAYS_SKIP: set[str] = {"__pycache__", ".DS_Store", "Thumbs.db", ".git"}
 
 
 # ── Code-file detection ───────────────────────────────────────────────────────
@@ -113,9 +113,7 @@ def is_code_file(name: str, extension: str) -> bool:
     if name in _CODE_NAMES:
         return True
     # e.g. '.gitignore' as both name and pseudo-extension
-    if not extension and f".{name.lower()}" in CODE_EXTENSIONS:
-        return True
-    return False
+    return bool(not extension and f".{name.lower()}" in CODE_EXTENSIONS)
 
 
 # ── Binary detection ─────────────────────────────────────────────────────────
@@ -170,12 +168,12 @@ def parse_size(size_str: str) -> int:
 
 # ── Pattern matching ──────────────────────────────────────────────────────────
 
-def matches_any(name: str, patterns: List[str]) -> bool:
+def matches_any(name: str, patterns: list[str]) -> bool:
     """Return ``True`` if *name* matches any of the glob *patterns*."""
     return any(fnmatch.fnmatch(name, pat) for pat in patterns)
 
 
-def matches_path_any(relative_path: str, patterns: List[str]) -> bool:
+def matches_path_any(relative_path: str, patterns: list[str]) -> bool:
     """
     Return ``True`` if *relative_path* matches any of the glob *patterns*.
     Patterns can contain path separators (e.g. ``lib/*``).
@@ -208,8 +206,8 @@ class GitignoreStack:
         ignored = substack.matches("packages/lib/foo.js")
     """
 
-    def __init__(self, specs: Optional[List[Tuple[str, Any]]] = None) -> None:
-        self._specs: List[Tuple[str, Any]] = list(specs or [])
+    def __init__(self, specs: list[tuple[str, Any]] | None = None) -> None:
+        self._specs: list[tuple[str, Any]] = list(specs or [])
 
     # ------------------------------------------------------------------ public
 

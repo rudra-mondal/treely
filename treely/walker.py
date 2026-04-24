@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from .config import TreeConfig
 from .filters import (
@@ -27,13 +26,13 @@ from .tree_node import TreeNode, WalkResult, WalkStats
 
 # ── Sorting ───────────────────────────────────────────────────────────────────
 
-def _sort_entries(entries: List[dict], sort: str) -> List[dict]:
+def _sort_entries(entries: list[dict], sort: str) -> list[dict]:
     """
     Split *entries* into dirs and files, sort each group according to *sort*,
     and return them concatenated (dirs always first).
     """
-    dirs: List[dict] = []
-    files: List[dict] = []
+    dirs: list[dict] = []
+    files: list[dict] = []
     for e in entries:
         (dirs if e["is_dir"] else files).append(e)
 
@@ -61,12 +60,12 @@ def _walk(
     depth: int,
     config: TreeConfig,
     gitignore_stack: GitignoreStack,
-    git_status: Dict[str, str],
-    ignore_patterns: List[str],
-    exclude_patterns: List[str],
-    max_size_bytes: Optional[int],
+    git_status: dict[str, str],
+    ignore_patterns: list[str],
+    exclude_patterns: list[str],
+    max_size_bytes: int | None,
     stats: WalkStats,
-    code_files: List[Path],
+    code_files: list[Path],
     parent_node: TreeNode,
 ) -> None:
     """Recursively populate *parent_node*.children."""
@@ -89,7 +88,7 @@ def _walk(
         return
 
     # ── Filter entries ────────────────────────────────────────────────────────
-    filtered: List[dict] = []
+    filtered: list[dict] = []
     for entry in raw_entries:
         name = entry.name
         is_symlink = entry.is_symlink()
@@ -164,13 +163,13 @@ def _walk(
         rel_entry = (relative_path + "/" + name) if relative_path else name
 
         # Git status lookup
-        git_stat: Optional[str] = git_status.get(rel_entry)
+        git_stat: str | None = git_status.get(rel_entry)
         # For directories, check if any child is dirty (use dir key if present)
         if git_stat is None and is_dir:
             git_stat = git_status.get(rel_entry + "/")
 
         # Symlink target
-        symlink_target: Optional[str] = None
+        symlink_target: str | None = None
         if is_symlink:
             try:
                 symlink_target = os.readlink(str(full))
@@ -195,13 +194,8 @@ def _walk(
         )
 
         # ── Code-file collection ──────────────────────────────────────────────
-        if config.code and not is_dir and not binary:
-            if is_code_file(name, ext):
-                # Honour --exclude patterns against the relative path
-                if not (exclude_patterns and matches_path_any(rel_entry, exclude_patterns)):
-                    # Honour --max-size
-                    if max_size_bytes is None or (size is not None and size <= max_size_bytes):
-                        code_files.append(full)
+        if config.code and not is_dir and not binary and is_code_file(name, ext) and not (exclude_patterns and matches_path_any(rel_entry, exclude_patterns)) and (max_size_bytes is None or (size is not None and size <= max_size_bytes)):
+            code_files.append(full)
 
         # ── Stats ─────────────────────────────────────────────────────────────
         if is_dir:
@@ -241,7 +235,7 @@ def _walk(
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def walk(root: Path, config: TreeConfig, git_status: Dict[str, str]) -> WalkResult:
+def walk(root: Path, config: TreeConfig, git_status: dict[str, str]) -> WalkResult:
     """
     Walk *root* according to *config* and return a :class:`WalkResult`.
 
@@ -256,16 +250,15 @@ def walk(root: Path, config: TreeConfig, git_status: Dict[str, str]) -> WalkResu
         :func:`treely.git.get_git_info`.
     """
     stats = WalkStats()
-    code_files: List[Path] = []
+    code_files: list[Path] = []
 
     ignore_patterns = config.ignore.split("|") if config.ignore else []
     exclude_patterns = config.exclude.split("|") if config.exclude else []
-    max_size_bytes: Optional[int] = None
+    max_size_bytes: int | None = None
     if config.max_size:
-        try:
+        import contextlib
+        with contextlib.suppress(ValueError):
             max_size_bytes = parse_size(config.max_size)
-        except ValueError:
-            pass  # Validation in main.py already caught this
 
     # Build root gitignore stack
     gitignore_stack = GitignoreStack()

@@ -225,10 +225,9 @@ def main() -> None:
     # ── Git status ────────────────────────────────────────────────────────────
     git_status: dict = {}
     if not config.no_git:
-        try:
+        import contextlib
+        with contextlib.suppress(Exception):
             _in_repo, git_status = get_git_info(config.root_path)
-        except Exception:
-            pass  # git status is always best-effort
 
     # ── Walk ──────────────────────────────────────────────────────────────────
     root = Path(config.root_path)

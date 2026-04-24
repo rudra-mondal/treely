@@ -7,7 +7,6 @@ regardless of whether it came from a CLI flag, a config file, or a profile.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -29,14 +28,14 @@ class TreeConfig:
     summary: bool = False
 
     # ── Filtering ─────────────────────────────────────────────────────────────
-    pattern: Optional[str] = None       # glob; applied to files only
-    ignore: Optional[str] = None        # pipe-separated globs to hide from tree
+    pattern: str | None = None       # glob; applied to files only
+    ignore: str | None = None        # pipe-separated globs to hide from tree
     use_gitignore: bool = False
 
     # ── Code output ───────────────────────────────────────────────────────────
     code: bool = False
-    exclude: Optional[str] = None       # pipe-separated globs; exclude from code
-    max_size: Optional[str] = None      # e.g. "1M", "500K" — skip large files
+    exclude: str | None = None       # pipe-separated globs; exclude from code
+    max_size: str | None = None      # e.g. "1M", "500K" — skip large files
     token_count: bool = False           # estimate LLM token count of code output
 
     # ── Git ───────────────────────────────────────────────────────────────────
@@ -49,9 +48,9 @@ class TreeConfig:
     format: str = "text"               # text | json | markdown
 
     # ── Output ────────────────────────────────────────────────────────────────
-    output: Optional[str] = None
+    output: str | None = None
     copy: bool = False
 
     # ── Config / profile (meta, not persisted in config file) ─────────────────
-    profile: Optional[str] = None
-    config_path: Optional[str] = None
+    profile: str | None = None
+    config_path: str | None = None

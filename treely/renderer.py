@@ -18,13 +18,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from rich.console import Console
+
 try:
-    from rich.padding import Padding
-    from rich.rule import Rule
-    from rich.syntax import Syntax
+            from rich.syntax import Syntax
     from rich.text import Text
     from rich.tree import Tree as RichTree
     _RICH_AVAILABLE = True
@@ -43,7 +42,7 @@ from .utils import (
 
 # ── Label builder ─────────────────────────────────────────────────────────────
 
-_GIT_SYMBOLS: Dict[str, str] = {
+_GIT_SYMBOLS: dict[str, str] = {
     "M": "●",
     "A": "+",
     "?": "?",
@@ -106,7 +105,7 @@ def _make_rich_label(node: TreeNode, config: TreeConfig, theme: Theme) -> Text:
 
 def _make_plain_label(node: TreeNode, config: TreeConfig) -> str:
     """Build a plain-text label (no rich markup) for a single tree node."""
-    parts: List[str] = []
+    parts: list[str] = []
 
     if node.git_status:
         sym = _GIT_SYMBOLS.get(node.git_status, " ")
@@ -134,9 +133,9 @@ _PREFIX_LAST = "    "
 _PREFIX_MID = "│   "
 
 
-def _render_plain_lines(node: TreeNode, config: TreeConfig, prefix: str = "") -> List[str]:
+def _render_plain_lines(node: TreeNode, config: TreeConfig, prefix: str = "") -> list[str]:
     """Recursively render *node* to a list of plain-text lines."""
-    lines: List[str] = []
+    lines: list[str] = []
     children = node.children
     for idx, child in enumerate(children):
         is_last = idx == len(children) - 1
@@ -204,7 +203,7 @@ def _read_file_safe(path: Path) -> str:
 
 
 def _render_code_to_console(
-    code_files: List[Path],
+    code_files: list[Path],
     root_path: Path,
     config: TreeConfig,
     theme: Theme,
@@ -249,16 +248,16 @@ def _render_code_to_console(
 
 
 def _render_code_to_string(
-    code_files: List[Path],
+    code_files: list[Path],
     root_path: Path,
     config: TreeConfig,
     for_markdown: bool = False,
-) -> Tuple[str, int]:
+) -> tuple[str, int]:
     """Render code sections to a plain string. Returns (text, char_count)."""
     if not code_files:
         return "", 0
 
-    lines: List[str] = []
+    lines: list[str] = []
     total_chars = 0
 
     lines.append("\n\n--- FILE CONTENTS ---")
@@ -286,9 +285,9 @@ def _render_code_to_string(
 
 # ── JSON serialisation ────────────────────────────────────────────────────────
 
-def _node_to_dict(node: TreeNode, config: TreeConfig) -> Dict[str, Any]:
+def _node_to_dict(node: TreeNode, config: TreeConfig) -> dict[str, Any]:
     """Recursively convert a ``TreeNode`` to a JSON-serialisable dict."""
-    d: Dict[str, Any] = {
+    d: dict[str, Any] = {
         "name": node.name,
         "type": "directory" if node.is_dir else "file",
         "path": str(node.path.resolve()).replace("\\", "/"),
@@ -330,7 +329,7 @@ class Renderer:
     def __init__(self, config: TreeConfig) -> None:
         self.config = config
         self.theme = get_theme(config.theme)
-        self._root_path: Optional[Path] = None
+        self._root_path: Path | None = None
 
     # ------------------------------------------------------------------ public
 
@@ -395,7 +394,7 @@ class Renderer:
             return self.to_markdown(result)
 
         # ── plain text ────────────────────────────────────────────────────────
-        lines: List[str] = [result.root.display_name]
+        lines: list[str] = [result.root.display_name]
         lines.extend(_render_plain_lines(result.root, cfg))
 
         if cfg.summary:
@@ -430,7 +429,7 @@ class Renderer:
 
     def to_markdown(self, result: WalkResult) -> str:
         """Return a Markdown formatted string."""
-        lines: List[str] = [
+        lines: list[str] = [
             f"# `{result.root.display_name}`\n",
             "```",
             result.root.display_name,
