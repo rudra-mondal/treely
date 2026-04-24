@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from .config import TreeConfig
 from .filters import (
@@ -25,46 +24,30 @@ from .filters import (
 )
 from .tree_node import TreeNode, WalkResult, WalkStats
 
-
 # ── Sorting ───────────────────────────────────────────────────────────────────
 
-def _sort_entries(entries: List[str], base: Path, sort: str) -> List[str]:
+def _sort_entries(entries: list[dict], sort: str) -> list[dict]:
     """
     Split *entries* into dirs and files, sort each group according to *sort*,
     and return them concatenated (dirs always first).
     """
-    dirs: List[str] = []
-    files: List[str] = []
+    dirs: list[dict] = []
+    files: list[dict] = []
     for e in entries:
-        (dirs if (base / e).is_dir() else files).append(e)
+        (dirs if e["is_dir"] else files).append(e)
 
     if sort == "size":
-        def _size(name: str) -> int:
-            try:
-                return (base / name).stat().st_size
-            except OSError:
-                return 0
-
-        files.sort(key=_size, reverse=True)
-        dirs.sort()
-
+        files.sort(key=lambda e: e.get("size") or 0, reverse=True)
+        dirs.sort(key=lambda e: e["name"].lower())
     elif sort == "mtime":
-        def _mtime(name: str) -> float:
-            try:
-                return (base / name).stat().st_mtime
-            except OSError:
-                return 0.0
-
-        dirs.sort(key=_mtime, reverse=True)
-        files.sort(key=_mtime, reverse=True)
-
+        dirs.sort(key=lambda e: e.get("mtime") or 0.0, reverse=True)
+        files.sort(key=lambda e: e.get("mtime") or 0.0, reverse=True)
     elif sort == "ext":
-        files.sort(key=lambda n: (os.path.splitext(n)[1].lower(), n.lower()))
-        dirs.sort()
-
+        files.sort(key=lambda e: (os.path.splitext(e["name"])[1].lower(), e["name"].lower()))
+        dirs.sort(key=lambda e: e["name"].lower())
     else:  # "name" (default)
-        dirs.sort(key=str.lower)
-        files.sort(key=str.lower)
+        dirs.sort(key=lambda e: e["name"].lower())
+        files.sort(key=lambda e: e["name"].lower())
 
     return dirs + files
 
@@ -77,12 +60,12 @@ def _walk(
     depth: int,
     config: TreeConfig,
     gitignore_stack: GitignoreStack,
-    git_status: Dict[str, str],
-    ignore_patterns: List[str],
-    exclude_patterns: List[str],
-    max_size_bytes: Optional[int],
+    git_status: dict[str, str],
+    ignore_patterns: list[str],
+    exclude_patterns: list[str],
+    max_size_bytes: int | None,
     stats: WalkStats,
-    code_files: List[Path],
+    code_files: list[Path],
     parent_node: TreeNode,
 ) -> None:
     """Recursively populate *parent_node*.children."""
@@ -90,9 +73,10 @@ def _walk(
     if config.level != -1 and depth >= config.level:
         return
 
+
     # ── List directory ────────────────────────────────────────────────────────
     try:
-        raw_entries = os.listdir(path)
+        raw_entries = list(os.scandir(path))
     except PermissionError:
         err_node = TreeNode(
             name="[Permission Denied]",
@@ -104,84 +88,101 @@ def _walk(
         return
 
     # ── Filter entries ────────────────────────────────────────────────────────
-    filtered: List[str] = []
+    filtered: list[dict] = []
     for entry in raw_entries:
-        full = path / entry
-        is_dir = full.is_dir()
+        name = entry.name
+        is_symlink = entry.is_symlink()
+
+        # If it's a symlink to a dir, is_dir() is False without follow_symlinks=True,
+        # but we want to treat it as a directory if it points to one and we might follow it.
+        # Actually `entry.is_dir()` follows symlinks by default. Let's match original behavior:
+        # full.is_dir() follows symlinks.
+        is_dir_resolved = entry.is_dir()
 
         # Always-skip set (e.g. __pycache__, .DS_Store) - unless --all
-        if entry in ALWAYS_SKIP and not config.all:
+        if name in ALWAYS_SKIP and not config.all:
             continue
 
         # Hidden items  (dirs starting with '.' are also hidden)
-        if not config.all and entry.startswith("."):
+        if not config.all and name.startswith("."):
             continue
 
         # --ignore patterns
-        if ignore_patterns and matches_any(entry, ignore_patterns):
+        if ignore_patterns and matches_any(name, ignore_patterns):
             continue
 
         # gitignore check (dirs get trailing slash added for spec matching)
         if config.use_gitignore and pathspec:
-            rel = (relative_path + "/" + entry) if relative_path else entry
-            check_path = rel + "/" if is_dir else rel
+            rel = (relative_path + "/" + name) if relative_path else name
+            check_path = rel + "/" if is_dir_resolved else rel
             if gitignore_stack.matches(check_path) or gitignore_stack.matches(rel):
                 continue
 
         # --pattern applies to files only (always descend into directories)
-        if config.pattern and not is_dir:
+        if config.pattern and not is_dir_resolved:
             import fnmatch as _fnm
-            if not _fnm.fnmatch(entry, config.pattern):
+            if not _fnm.fnmatch(name, config.pattern):
                 continue
 
         # --dirs-only / --files-only
-        if config.dirs_only and not is_dir:
+        if config.dirs_only and not is_dir_resolved:
             continue
-        if config.files_only and is_dir:
+        if config.files_only and is_dir_resolved:
             continue
 
-        filtered.append(entry)
+        # Extract size and mtime if needed to avoid redundant stat calls later
+        size = None
+        mtime = 0.0
+        try:
+            stat_obj = entry.stat()
+            size = stat_obj.st_size
+            mtime = stat_obj.st_mtime
+        except OSError:
+            pass
+
+        filtered.append({
+            "name": name,
+            "is_dir": is_dir_resolved,
+            "is_symlink": is_symlink,
+            "size": size,
+            "mtime": mtime,
+        })
 
     # ── Sort ──────────────────────────────────────────────────────────────────
-    combined = _sort_entries(filtered, path, config.sort)
+    combined = _sort_entries(filtered, config.sort)
 
     # ── Build TreeNode children ───────────────────────────────────────────────
-    for entry in combined:
-        full = path / entry
-        is_symlink = os.path.islink(str(full))
-        is_dir = full.is_dir()
-        ext = os.path.splitext(entry)[1].lower()
-        rel_entry = (relative_path + "/" + entry) if relative_path else entry
+    for item in combined:
+        name = item["name"]
+        is_dir = item["is_dir"]
+        is_symlink = item["is_symlink"]
+        size = item["size"] if not is_dir else None
+
+        full = path / name
+        ext = os.path.splitext(name)[1].lower()
+        rel_entry = (relative_path + "/" + name) if relative_path else name
 
         # Git status lookup
-        git_stat: Optional[str] = git_status.get(rel_entry)
+        git_stat: str | None = git_status.get(rel_entry)
         # For directories, check if any child is dirty (use dir key if present)
         if git_stat is None and is_dir:
             git_stat = git_status.get(rel_entry + "/")
 
         # Symlink target
-        symlink_target: Optional[str] = None
+        symlink_target: str | None = None
         if is_symlink:
             try:
                 symlink_target = os.readlink(str(full))
             except OSError:
                 symlink_target = None
 
-        # File size
-        size: Optional[int] = None
-        if not is_dir:
-            try:
-                size = full.stat().st_size
-            except OSError:
-                pass
-
         # Binary detection (only for code candidates)
         binary = False
-        if not is_dir and is_code_file(entry, ext):
+        if not is_dir and is_code_file(name, ext):
             binary = is_binary_file(full)
 
         node = TreeNode(
-            name=entry if not config.full_path else str(full.resolve()),
+            name=name if not config.full_path else str(full.resolve()),
             path=full,
             is_dir=is_dir,
             size=size,
@@ -193,13 +194,8 @@ def _walk(
         )
 
         # ── Code-file collection ──────────────────────────────────────────────
-        if config.code and not is_dir and not binary:
-            if is_code_file(entry, ext):
-                # Honour --exclude patterns against the relative path
-                if not (exclude_patterns and matches_path_any(rel_entry, exclude_patterns)):
-                    # Honour --max-size
-                    if max_size_bytes is None or (size is not None and size <= max_size_bytes):
-                        code_files.append(full)
+        if config.code and not is_dir and not binary and is_code_file(name, ext) and not (exclude_patterns and matches_path_any(rel_entry, exclude_patterns)) and (max_size_bytes is None or (size is not None and size <= max_size_bytes)):
+            code_files.append(full)
 
         # ── Stats ─────────────────────────────────────────────────────────────
         if is_dir:
@@ -213,6 +209,7 @@ def _walk(
 
         # ── Recurse into directories ──────────────────────────────────────────
         if is_dir and (not is_symlink or config.follow_symlinks):
+
             child_stack = gitignore_stack.child()
             # Load nested .gitignore if present
             if config.use_gitignore and pathspec:
@@ -238,7 +235,7 @@ def _walk(
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def walk(root: Path, config: TreeConfig, git_status: Dict[str, str]) -> WalkResult:
+def walk(root: Path, config: TreeConfig, git_status: dict[str, str]) -> WalkResult:
     """
     Walk *root* according to *config* and return a :class:`WalkResult`.
 
@@ -253,16 +250,15 @@ def walk(root: Path, config: TreeConfig, git_status: Dict[str, str]) -> WalkResu
         :func:`treely.git.get_git_info`.
     """
     stats = WalkStats()
-    code_files: List[Path] = []
+    code_files: list[Path] = []
 
     ignore_patterns = config.ignore.split("|") if config.ignore else []
     exclude_patterns = config.exclude.split("|") if config.exclude else []
-    max_size_bytes: Optional[int] = None
+    max_size_bytes: int | None = None
     if config.max_size:
-        try:
+        import contextlib
+        with contextlib.suppress(ValueError):
             max_size_bytes = parse_size(config.max_size)
-        except ValueError:
-            pass  # Validation in main.py already caught this
 
     # Build root gitignore stack
     gitignore_stack = GitignoreStack()

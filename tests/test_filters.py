@@ -6,8 +6,6 @@ parsing, pattern matching, and the GitignoreStack.
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from treely.filters import (
@@ -19,7 +17,6 @@ from treely.filters import (
     matches_path_any,
     parse_size,
 )
-
 
 # ── parse_size ────────────────────────────────────────────────────────────────
 

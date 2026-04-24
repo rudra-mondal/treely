@@ -7,7 +7,6 @@ Each Theme is a frozen dataclass that maps semantic roles to rich style strings.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
 
 
 @dataclass(frozen=True)
@@ -45,7 +44,7 @@ class Theme:
 
 # ── Built-in themes ───────────────────────────────────────────────────────────
 
-THEMES: Dict[str, Theme] = {
+THEMES: dict[str, Theme] = {
     "default": Theme(
         name="default",
         dir_style="bold blue",

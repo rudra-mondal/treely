@@ -8,8 +8,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from treely.config import TreeConfig
 from treely.renderer import Renderer
 from treely.walker import walk

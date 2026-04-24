@@ -13,10 +13,10 @@ Public Python API::
     print(renderer.to_string(result))
 """
 from .config import TreeConfig
-from .tree_node import TreeNode, WalkResult, WalkStats
-from .walker import walk
 from .renderer import Renderer
 from .theme import THEME_NAMES, get_theme
+from .tree_node import TreeNode, WalkResult, WalkStats
+from .walker import walk
 
 __version__ = "2.0.0"
 __author__ = "Rudra Mondal"
