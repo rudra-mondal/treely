@@ -23,7 +23,7 @@ from typing import Any
 from rich.console import Console
 
 try:
-            from rich.syntax import Syntax
+    from rich.syntax import Syntax
     from rich.text import Text
     from rich.tree import Tree as RichTree
     _RICH_AVAILABLE = True
