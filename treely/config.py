@@ -6,7 +6,7 @@ regardless of whether it came from a CLI flag, a config file, or a profile.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 

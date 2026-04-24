@@ -25,7 +25,6 @@ from .filters import (
 )
 from .tree_node import TreeNode, WalkResult, WalkStats
 
-
 # ── Sorting ───────────────────────────────────────────────────────────────────
 
 def _sort_entries(entries: List[dict], sort: str) -> List[dict]:

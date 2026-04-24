@@ -138,7 +138,7 @@ def is_binary_file(path: Path, sample_bytes: int = 8192) -> bool:
             return False
 
         return b"\x00" in chunk
-    except (OSError, IOError):
+    except OSError:
         return False
 
 
@@ -218,13 +218,13 @@ class GitignoreStack:
         if pathspec is None:
             return
         try:
-            with open(gitignore_path, "r", encoding="utf-8", errors="ignore") as fh:
+            with open(gitignore_path, encoding="utf-8", errors="ignore") as fh:
                 spec = pathspec.PathSpec.from_lines("gitwildmatch", fh)
             self._specs.append((dir_prefix, spec))
         except OSError:
             pass
 
-    def child(self) -> "GitignoreStack":
+    def child(self) -> GitignoreStack:
         """Return a new stack that inherits the current specs (for recursion)."""
         return GitignoreStack(self._specs)
 

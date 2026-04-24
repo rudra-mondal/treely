@@ -16,18 +16,17 @@ corresponding formatted strings.
 """
 from __future__ import annotations
 
-import io
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from rich.console import Console
 try:
-    from rich.console import Console
+    from rich.padding import Padding
+    from rich.rule import Rule
+    from rich.syntax import Syntax
     from rich.text import Text
     from rich.tree import Tree as RichTree
-    from rich.rule import Rule
-    from rich.padding import Padding
-    from rich.syntax import Syntax
     _RICH_AVAILABLE = True
 except ImportError:
     _RICH_AVAILABLE = False
@@ -42,7 +41,6 @@ from .utils import (
     get_language_tag,
 )
 
-
 # ── Label builder ─────────────────────────────────────────────────────────────
 
 _GIT_SYMBOLS: Dict[str, str] = {
@@ -54,7 +52,7 @@ _GIT_SYMBOLS: Dict[str, str] = {
 }
 
 
-def _make_rich_label(node: TreeNode, config: TreeConfig, theme: Theme) -> "Text":
+def _make_rich_label(node: TreeNode, config: TreeConfig, theme: Theme) -> Text:
     """Build a rich ``Text`` object for a single tree node."""
     label = Text()
 
@@ -155,7 +153,7 @@ def _render_plain_lines(node: TreeNode, config: TreeConfig, prefix: str = "") ->
 # ── Rich-powered tree renderer ────────────────────────────────────────────────
 
 def _populate_rich_tree(
-    rich_node: "RichTree",
+    rich_node: RichTree,
     tree_node: TreeNode,
     config: TreeConfig,
     theme: Theme,
@@ -173,7 +171,7 @@ def _populate_rich_tree(
 
 def _build_rich_tree(
     root: TreeNode, config: TreeConfig, theme: Theme
-) -> "RichTree":
+) -> RichTree:
     """Build and return a rich ``Tree`` object for *root*."""
     label = _make_rich_label(root, config, theme)
     rich_tree = RichTree(label, guide_style=theme.guide_style)
@@ -187,7 +185,7 @@ def _read_file_safe(path: Path) -> str:
     """Read *path* with robust encoding detection (UTF-16 BOM -> UTF-8)."""
     try:
         raw = path.read_bytes()
-        
+
         # Check for UTF-16 / UTF-32 BOMs
         if raw.startswith((b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")):
             content = raw.decode("utf-32", errors="replace")
@@ -195,7 +193,7 @@ def _read_file_safe(path: Path) -> str:
             content = raw.decode("utf-16", errors="replace")
         else:
             content = raw.decode("utf-8", errors="replace")
-            
+
         # Strip null bytes and replace the unicode replacement character
         # with standard ASCII '?' to prevent Windows cp1252 crash loops.
         return content.replace("\x00", "").replace("\ufffd", "?")
@@ -210,7 +208,7 @@ def _render_code_to_console(
     root_path: Path,
     config: TreeConfig,
     theme: Theme,
-    console: "Console",
+    console: Console,
 ) -> int:
     """Print code sections to *console*. Returns total character count for tokens."""
     if not code_files:

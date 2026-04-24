@@ -19,7 +19,7 @@ class TreeNode:
     is_dir: bool
 
     # Populated during walking
-    children: List["TreeNode"] = field(default_factory=list, repr=False)
+    children: List[TreeNode] = field(default_factory=list, repr=False)
     size: Optional[int] = None          # bytes; None for dirs or on error
     is_symlink: bool = False
     symlink_target: Optional[str] = None

@@ -6,10 +6,6 @@ gitignore support, depth limiting, sorting, and code-file collection.
 """
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
-
 from treely.config import TreeConfig
 from treely.walker import walk
 

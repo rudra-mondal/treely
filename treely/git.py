@@ -13,7 +13,6 @@ import os
 import subprocess
 from typing import Dict, List, Optional, Tuple
 
-
 # Status characters used in the tree (subset of git's XY codes)
 GIT_STATUS_MODIFIED = "M"
 GIT_STATUS_ADDED = "A"

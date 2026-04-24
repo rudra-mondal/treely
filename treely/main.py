@@ -8,9 +8,9 @@ All heavy logic lives in the other modules; this file should stay ~100 lines.
 """
 from __future__ import annotations
 
+import argparse
 import os
 import sys
-import argparse
 from pathlib import Path
 
 from . import __version__

@@ -6,8 +6,7 @@ Shared utility helpers that don't belong to any specific module.
 from __future__ import annotations
 
 import re
-from typing import Dict, Optional, Union
-
+from typing import Dict, Union
 
 # ── Size formatting ───────────────────────────────────────────────────────────
 
