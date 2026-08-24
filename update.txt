@@ -7,4 +7,4 @@ Update Workflow (v2.0+)
 6. Lint: ruff check treely/
 7. Build: python -m build
 8. Publish: twine upload dist/*
-   (or push a git tag vX.Y.Z to trigger the automated GitHub Actions publish workflow)
+   (or push a "git tag vX.Y.Z" and then "git push origin vX.Y.Z" to trigger the automated GitHub Actions publish workflow)
