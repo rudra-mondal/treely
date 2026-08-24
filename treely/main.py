@@ -6,11 +6,12 @@ a ``TreeConfig``, drives walking + rendering, and routes output.
 
 All heavy logic lives in the other modules; this file should stay ~100 lines.
 """
+
 from __future__ import annotations
 
+import argparse
 import os
 import sys
-import argparse
 from pathlib import Path
 
 from . import __version__
@@ -33,6 +34,7 @@ DEFAULT_OUTPUT_FILENAME = "treely_output.txt"
 
 
 # ── Argument parser ────────────────────────────────────────────────────────────
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -61,83 +63,152 @@ Examples:
     )
 
     # ── Version ───────────────────────────────────────────────────────────────
-    parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}"
-    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     # ── Tree display ──────────────────────────────────────────────────────────
-    parser.add_argument("-a", "--all", action="store_true",
-                        help="Show hidden files and directories (e.g. '.git').")
-    parser.add_argument("-L", "--level", type=int, default=-1, metavar="LEVEL",
-                        help="Maximum depth to recurse (e.g. -L 2).")
-    parser.add_argument("--sort", choices=["name", "size", "mtime", "ext"],
-                        default="name", metavar="MODE",
-                        help="Sort order: name|size|mtime|ext (default: name).")
-    parser.add_argument("--dirs-only", action="store_true",
-                        help="Show only directories in the tree.")
-    parser.add_argument("--files-only", action="store_true",
-                        help="Show only files in the tree.")
-    parser.add_argument("--full-path", action="store_true",
-                        help="Print the full absolute path of each entry.")
-    parser.add_argument("--follow-symlinks", action="store_true",
-                        help="Follow symbolic links when recursing.")
-    parser.add_argument("--show-size", action="store_true",
-                        help="Display the size of each file.")
-    parser.add_argument("-s", "--summary", action="store_true",
-                        help="Print a count of directories and files.")
+    parser.add_argument(
+        "-a", "--all", action="store_true", help="Show hidden files and directories (e.g. '.git')."
+    )
+    parser.add_argument(
+        "-L",
+        "--level",
+        type=int,
+        default=-1,
+        metavar="LEVEL",
+        help="Maximum depth to recurse (e.g. -L 2).",
+    )
+    parser.add_argument(
+        "--sort",
+        choices=["name", "size", "mtime", "ext"],
+        default="name",
+        metavar="MODE",
+        help="Sort order: name|size|mtime|ext (default: name).",
+    )
+    parser.add_argument(
+        "--dirs-only", action="store_true", help="Show only directories in the tree."
+    )
+    parser.add_argument("--files-only", action="store_true", help="Show only files in the tree.")
+    parser.add_argument(
+        "--full-path", action="store_true", help="Print the full absolute path of each entry."
+    )
+    parser.add_argument(
+        "--follow-symlinks", action="store_true", help="Follow symbolic links when recursing."
+    )
+    parser.add_argument(
+        "--show-size",
+        action="store_true",
+        help="Display the size of files and directories/folders.",
+    )
+    parser.add_argument(
+        "--show-file-size", action="store_true", help="Display the size of each file only."
+    )
+    parser.add_argument(
+        "--show-folder-size",
+        action="store_true",
+        help="Display the size of each directory or folder only.",
+    )
+    parser.add_argument(
+        "-s", "--summary", action="store_true", help="Print a count of directories and files."
+    )
 
     # ── Filtering ─────────────────────────────────────────────────────────────
-    parser.add_argument("--pattern", type=str, metavar="GLOB",
-                        help="Show only files matching a glob pattern (e.g. \"*.py\").")
-    parser.add_argument("--ignore", type=str, metavar="PATTERNS",
-                        help="Exclude entries matching pattern(s). Separate with '|'.")
-    parser.add_argument("--use-gitignore", action="store_true",
-                        help="Auto-exclude entries listed in .gitignore (including nested).")
+    parser.add_argument(
+        "--pattern",
+        type=str,
+        metavar="GLOB",
+        help='Show only files matching a glob pattern (e.g. "*.py").',
+    )
+    parser.add_argument(
+        "--ignore",
+        type=str,
+        metavar="PATTERNS",
+        help="Exclude entries matching pattern(s). Separate with '|'.",
+    )
+    parser.add_argument(
+        "--use-gitignore",
+        action="store_true",
+        help="Auto-exclude entries listed in .gitignore (including nested).",
+    )
 
     # ── Code output ───────────────────────────────────────────────────────────
-    parser.add_argument("--code", action="store_true",
-                        help="Print the content of detected code files after the tree.")
-    parser.add_argument("--exclude", type=str, metavar="PATTERNS",
-                        help="When using --code, exclude paths from code output.\n"
-                             "Separate patterns with '|' (e.g. \"lib/*|*.log\").")
-    parser.add_argument("--max-size", type=str, metavar="SIZE",
-                        help="Skip files larger than SIZE in code output (e.g. 1M, 500K).")
-    parser.add_argument("--token-count", action="store_true",
-                        help="Estimate LLM token count of the full code output.")
+    parser.add_argument(
+        "--code",
+        action="store_true",
+        help="Print the content of detected code files after the tree.",
+    )
+    parser.add_argument(
+        "--exclude",
+        type=str,
+        metavar="PATTERNS",
+        help="When using --code, exclude paths from code output.\n"
+        "Separate patterns with '|' (e.g. \"lib/*|*.log\").",
+    )
+    parser.add_argument(
+        "--max-size",
+        type=str,
+        metavar="SIZE",
+        help="Skip files larger than SIZE in code output (e.g. 1M, 500K).",
+    )
+    parser.add_argument(
+        "--token-count",
+        action="store_true",
+        help="Estimate LLM token count of the full code output.",
+    )
 
     # ── Git ───────────────────────────────────────────────────────────────────
-    parser.add_argument("--no-git", action="store_true",
-                        help="Disable git status annotations even inside a git repo.")
+    parser.add_argument(
+        "--no-git",
+        action="store_true",
+        help="Disable git status annotations even inside a git repo.",
+    )
 
     # ── Rendering ─────────────────────────────────────────────────────────────
-    parser.add_argument("--theme", choices=THEME_NAMES, default="default",
-                        metavar="THEME",
-                        help=f"Colour theme: {', '.join(THEME_NAMES)} (default: default).")
-    parser.add_argument("--no-color", action="store_true",
-                        help="Disable all colour output (auto-detected when piping).")
-    parser.add_argument("--no-banner", action="store_true",
-                        help="Suppress the startup banner and delay.")
-    parser.add_argument("--format", choices=["text", "json", "markdown"],
-                        default="text", metavar="FORMAT",
-                        help="Output format: text|json|markdown (default: text).")
+    parser.add_argument(
+        "--theme",
+        choices=THEME_NAMES,
+        default="default",
+        metavar="THEME",
+        help=f"Colour theme: {', '.join(THEME_NAMES)} (default: default).",
+    )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable all colour output (auto-detected when piping).",
+    )
+    parser.add_argument(
+        "--no-banner", action="store_true", help="Suppress the startup banner and delay."
+    )
+    parser.add_argument(
+        "--format",
+        choices=["text", "json", "markdown"],
+        default="text",
+        metavar="FORMAT",
+        help="Output format: text|json|markdown (default: text).",
+    )
 
     # ── Output ────────────────────────────────────────────────────────────────
-    parser.add_argument("-o", "--output", nargs="?", const=DEFAULT_OUTPUT_FILENAME,
-                        default=None, metavar="FILENAME",
-                        help=f"Save output to a file (default name: {DEFAULT_OUTPUT_FILENAME}).")
-    parser.add_argument("-c", "--copy", action="store_true",
-                        help="Copy output to clipboard.")
+    parser.add_argument(
+        "-o",
+        "--output",
+        nargs="?",
+        const=DEFAULT_OUTPUT_FILENAME,
+        default=None,
+        metavar="FILENAME",
+        help=f"Save output to a file (default name: {DEFAULT_OUTPUT_FILENAME}).",
+    )
+    parser.add_argument("-c", "--copy", action="store_true", help="Copy output to clipboard.")
 
     # ── Config / profile ─────────────────────────────────────────────────────
-    parser.add_argument("--config", type=str, metavar="PATH",
-                        help="Path to a TOML config file.")
-    parser.add_argument("--profile", type=str, metavar="NAME",
-                        help="Run a named profile from the config file.")
+    parser.add_argument("--config", type=str, metavar="PATH", help="Path to a TOML config file.")
+    parser.add_argument(
+        "--profile", type=str, metavar="NAME", help="Run a named profile from the config file."
+    )
 
     return parser
 
 
 # ── Config assembly (precedence: CLI > profile > defaults > built-ins) ─────────
+
 
 def _build_config(args: argparse.Namespace) -> TreeConfig:
     """Convert parsed CLI args + config file into a final TreeConfig."""
@@ -174,6 +245,7 @@ def _build_config(args: argparse.Namespace) -> TreeConfig:
 
 # ── Validation ────────────────────────────────────────────────────────────────
 
+
 def _validate(config: TreeConfig, parser: argparse.ArgumentParser) -> None:
     """Run pre-flight validation checks. Calls parser.error() on failure."""
     if config.exclude and not config.code:
@@ -192,15 +264,11 @@ def _validate(config: TreeConfig, parser: argparse.ArgumentParser) -> None:
         parser.error("--dirs-only and --files-only cannot be used together.")
 
     if not os.path.exists(config.root_path):
-        sys.stderr.write(
-            f"\033[31mError: The path '{config.root_path}' does not exist.\033[0m\n"
-        )
+        sys.stderr.write(f"\033[31mError: The path '{config.root_path}' does not exist.\033[0m\n")
         sys.exit(1)
 
     if not os.path.isdir(config.root_path):
-        sys.stderr.write(
-            f"\033[31mError: '{config.root_path}' is not a directory.\033[0m\n"
-        )
+        sys.stderr.write(f"\033[31mError: '{config.root_path}' is not a directory.\033[0m\n")
         sys.exit(1)
 
     if config.copy:
@@ -211,6 +279,7 @@ def _validate(config: TreeConfig, parser: argparse.ArgumentParser) -> None:
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     parser = _build_parser()

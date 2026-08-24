@@ -3,13 +3,14 @@ treely.utils
 ~~~~~~~~~~~~
 Shared utility helpers that don't belong to any specific module.
 """
+
 from __future__ import annotations
 
 import re
-from typing import Dict, Optional, Union
-
+from typing import Dict, Union
 
 # ── Size formatting ───────────────────────────────────────────────────────────
+
 
 def get_human_readable_size(size_bytes: int, precision: int = 1) -> str:
     """Convert a byte count to a human-readable string (e.g. 1.4K, 3.2M)."""
@@ -25,15 +26,27 @@ def get_human_readable_size(size_bytes: int, precision: int = 1) -> str:
 # ── Language tag inference ────────────────────────────────────────────────────
 
 _EXT_TO_LANG: Dict[str, str] = {
-    ".py": "python", ".pyi": "python",
-    ".js": "javascript", ".mjs": "javascript", ".cjs": "javascript",
-    ".ts": "typescript", ".mts": "typescript",
-    ".jsx": "jsx", ".tsx": "tsx",
-    ".html": "html", ".htm": "html",
-    ".css": "css", ".scss": "scss", ".less": "less",
+    ".py": "python",
+    ".pyi": "python",
+    ".js": "javascript",
+    ".mjs": "javascript",
+    ".cjs": "javascript",
+    ".ts": "typescript",
+    ".mts": "typescript",
+    ".jsx": "jsx",
+    ".tsx": "tsx",
+    ".html": "html",
+    ".htm": "html",
+    ".css": "css",
+    ".scss": "scss",
+    ".less": "less",
     ".java": "java",
-    ".c": "c", ".h": "c",
-    ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp", ".hpp": "cpp",
+    ".c": "c",
+    ".h": "c",
+    ".cpp": "cpp",
+    ".cc": "cpp",
+    ".cxx": "cpp",
+    ".hpp": "cpp",
     ".cs": "csharp",
     ".go": "go",
     ".rs": "rust",
@@ -45,44 +58,61 @@ _EXT_TO_LANG: Dict[str, str] = {
     ".scala": "scala",
     ".lua": "lua",
     ".pl": "perl",
-    ".sh": "bash", ".bash": "bash",
-    ".bat": "batch", ".cmd": "batch",
+    ".sh": "bash",
+    ".bash": "bash",
+    ".bat": "batch",
+    ".cmd": "batch",
     ".ps1": "powershell",
     ".sql": "sql",
     ".xml": "xml",
-    ".json": "json", ".jsonc": "json",
-    ".yaml": "yaml", ".yml": "yaml",
+    ".json": "json",
+    ".jsonc": "json",
+    ".yaml": "yaml",
+    ".yml": "yaml",
     ".toml": "toml",
-    ".ini": "ini", ".cfg": "ini", ".conf": "ini",
+    ".ini": "ini",
+    ".cfg": "ini",
+    ".conf": "ini",
     ".env": "dotenv",
-    ".md": "markdown", ".mdx": "markdown",
+    ".md": "markdown",
+    ".mdx": "markdown",
     ".rst": "rst",
     ".tex": "latex",
     ".r": "r",
     ".jl": "julia",
-    ".ex": "elixir", ".exs": "elixir",
-    ".erl": "erlang", ".hrl": "erlang",
-    ".clj": "clojure", ".cljs": "clojure",
+    ".ex": "elixir",
+    ".exs": "elixir",
+    ".erl": "erlang",
+    ".hrl": "erlang",
+    ".clj": "clojure",
+    ".cljs": "clojure",
     ".hs": "haskell",
     ".elm": "elm",
-    ".fs": "fsharp", ".fsx": "fsharp",
-    ".ml": "ocaml", ".mli": "ocaml",
+    ".fs": "fsharp",
+    ".fsx": "fsharp",
+    ".ml": "ocaml",
+    ".mli": "ocaml",
     ".nim": "nim",
     ".zig": "zig",
-    ".tf": "terraform", ".hcl": "hcl",
+    ".tf": "terraform",
+    ".hcl": "hcl",
     ".proto": "protobuf",
-    ".graphql": "graphql", ".gql": "graphql",
+    ".graphql": "graphql",
+    ".gql": "graphql",
     ".svelte": "svelte",
     ".vue": "vue",
     ".astro": "astro",
     ".gradle": "gradle",
     ".dockerfile": "dockerfile",
-    ".make": "makefile", ".mk": "makefile",
+    ".make": "makefile",
+    ".mk": "makefile",
 }
 
 _NAME_TO_LANG: Dict[str, str] = {
     "Dockerfile": "dockerfile",
-    "Makefile": "makefile", "makefile": "makefile", "GNUmakefile": "makefile",
+    "Makefile": "makefile",
+    "makefile": "makefile",
+    "GNUmakefile": "makefile",
     ".gitignore": "gitignore",
     ".dockerignore": "gitignore",
     ".env": "dotenv",
@@ -111,6 +141,7 @@ def strip_ansi(text: str) -> str:
 
 
 # ── Token estimation ─────────────────────────────────────────────────────────
+
 
 def estimate_tokens(text_or_count: Union[str, int]) -> int:
     """

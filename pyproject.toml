@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "treely"
-version = "2.0.0"
+version = "2.1.0"
 authors = [
     { name = "Rudra Mondal", email = "rudramondal815@gmail.com" },
 ]
@@ -72,7 +72,7 @@ line-length = 100
 target-version = "py38"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+select = ["E", "F", "W", "I", "B", "C4"]
 ignore = ["E501"]  # line too long — handled by formatter
 
 [tool.ruff.lint.isort]

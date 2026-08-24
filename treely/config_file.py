@@ -15,6 +15,7 @@ Config file search order:
   3. ``~/.config/treely/config.toml`` on Linux / macOS
   4. ``%APPDATA%\\treely\\config.toml`` on Windows
 """
+
 from __future__ import annotations
 
 import os
@@ -28,10 +29,12 @@ from .config import TreeConfig
 
 if sys.version_info >= (3, 11):
     import tomllib  # built-in on Python 3.11+
+
     _HAS_TOML = True
 else:
     try:
         import tomli as tomllib  # type: ignore[no-redef]
+
         _HAS_TOML = True
     except ImportError:
         tomllib = None  # type: ignore[assignment]
@@ -39,6 +42,7 @@ else:
 
 
 # ── Config file discovery ─────────────────────────────────────────────────────
+
 
 def _default_config_paths() -> List[Path]:
     """Return candidate config file paths in priority order."""
@@ -76,6 +80,7 @@ def find_config_file(explicit_path: Optional[str] = None) -> Optional[Path]:
 
 # ── Reading ───────────────────────────────────────────────────────────────────
 
+
 def load_config_file(path: Path) -> Dict[str, Any]:
     """
     Parse a TOML config file and return its contents as a dict.
@@ -95,13 +100,31 @@ def load_config_file(path: Path) -> Dict[str, Any]:
 # Fields in TreeConfig that the config file is allowed to set.
 # Excluded: root_path, profile, config_path (these are always CLI-only).
 _SETTABLE_FIELDS = {
-    "all", "level", "sort", "dirs_only", "files_only", "full_path",
-    "follow_symlinks", "show_size", "summary",
-    "pattern", "ignore", "use_gitignore",
-    "code", "exclude", "max_size", "token_count",
+    "all",
+    "level",
+    "sort",
+    "dirs_only",
+    "files_only",
+    "full_path",
+    "follow_symlinks",
+    "show_size",
+    "show_file_size",
+    "show_folder_size",
+    "summary",
+    "pattern",
+    "ignore",
+    "use_gitignore",
+    "code",
+    "exclude",
+    "max_size",
+    "token_count",
     "no_git",
-    "theme", "no_color", "no_banner", "format",
-    "output", "copy",
+    "theme",
+    "no_color",
+    "no_banner",
+    "format",
+    "output",
+    "copy",
 }
 
 
@@ -149,9 +172,7 @@ def apply_config_file(
             config = _apply_section(config, profiles[profile])
         else:
             # Non-fatal: unknown profile
-            sys.stderr.write(
-                f"Warning: Profile '{profile}' not found in config file.\n"
-            )
+            sys.stderr.write(f"Warning: Profile '{profile}' not found in config file.\n")
 
     return config
 

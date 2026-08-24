@@ -14,20 +14,19 @@ The ``Renderer`` class has two main entry points:
 Additionally ``to_json(result)`` and ``to_markdown(result)`` return the
 corresponding formatted strings.
 """
+
 from __future__ import annotations
 
-import io
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from rich.console import Console
+    from rich.syntax import Syntax
     from rich.text import Text
     from rich.tree import Tree as RichTree
-    from rich.rule import Rule
-    from rich.padding import Padding
-    from rich.syntax import Syntax
+
     _RICH_AVAILABLE = True
 except ImportError:
     _RICH_AVAILABLE = False
@@ -42,7 +41,6 @@ from .utils import (
     get_language_tag,
 )
 
-
 # ── Label builder ─────────────────────────────────────────────────────────────
 
 _GIT_SYMBOLS: Dict[str, str] = {
@@ -54,7 +52,7 @@ _GIT_SYMBOLS: Dict[str, str] = {
 }
 
 
-def _make_rich_label(node: TreeNode, config: TreeConfig, theme: Theme) -> "Text":
+def _make_rich_label(node: TreeNode, config: TreeConfig, theme: Theme) -> Text:
     """Build a rich ``Text`` object for a single tree node."""
     label = Text()
 
@@ -97,7 +95,8 @@ def _make_rich_label(node: TreeNode, config: TreeConfig, theme: Theme) -> "Text"
         label.append(display, style=theme.file_style)
 
     # ── Size badge ────────────────────────────────────────────────────────────
-    if config.show_size and node.size is not None:
+    show_badge = config.should_show_folder_size() if node.is_dir else config.should_show_file_size()
+    if show_badge and node.size is not None:
         label.append(
             f"  [{get_human_readable_size(node.size)}]",
             style=theme.size_style,
@@ -122,7 +121,8 @@ def _make_plain_label(node: TreeNode, config: TreeConfig) -> str:
     if node.is_binary:
         parts.append("  [binary]")
 
-    if config.show_size and node.size is not None:
+    show_badge = config.should_show_folder_size() if node.is_dir else config.should_show_file_size()
+    if show_badge and node.size is not None:
         parts.append(f"  [{get_human_readable_size(node.size)}]")
 
     return "".join(parts)
@@ -146,16 +146,15 @@ def _render_plain_lines(node: TreeNode, config: TreeConfig, prefix: str = "") ->
         ext_prefix = _PREFIX_LAST if is_last else _PREFIX_MID
         lines.append(prefix + connector + _make_plain_label(child, config))
         if child.is_dir and child.children:
-            lines.extend(
-                _render_plain_lines(child, config, prefix + ext_prefix)
-            )
+            lines.extend(_render_plain_lines(child, config, prefix + ext_prefix))
     return lines
 
 
 # ── Rich-powered tree renderer ────────────────────────────────────────────────
 
+
 def _populate_rich_tree(
-    rich_node: "RichTree",
+    rich_node: RichTree,
     tree_node: TreeNode,
     config: TreeConfig,
     theme: Theme,
@@ -171,9 +170,7 @@ def _populate_rich_tree(
             rich_node.add(label)
 
 
-def _build_rich_tree(
-    root: TreeNode, config: TreeConfig, theme: Theme
-) -> "RichTree":
+def _build_rich_tree(root: TreeNode, config: TreeConfig, theme: Theme) -> RichTree:
     """Build and return a rich ``Tree`` object for *root*."""
     label = _make_rich_label(root, config, theme)
     rich_tree = RichTree(label, guide_style=theme.guide_style)
@@ -183,11 +180,12 @@ def _build_rich_tree(
 
 # ── Code section rendering ────────────────────────────────────────────────────
 
+
 def _read_file_safe(path: Path) -> str:
     """Read *path* with robust encoding detection (UTF-16 BOM -> UTF-8)."""
     try:
         raw = path.read_bytes()
-        
+
         # Check for UTF-16 / UTF-32 BOMs
         if raw.startswith((b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")):
             content = raw.decode("utf-32", errors="replace")
@@ -195,7 +193,7 @@ def _read_file_safe(path: Path) -> str:
             content = raw.decode("utf-16", errors="replace")
         else:
             content = raw.decode("utf-8", errors="replace")
-            
+
         # Strip null bytes and replace the unicode replacement character
         # with standard ASCII '?' to prevent Windows cp1252 crash loops.
         return content.replace("\x00", "").replace("\ufffd", "?")
@@ -210,7 +208,7 @@ def _render_code_to_console(
     root_path: Path,
     config: TreeConfig,
     theme: Theme,
-    console: "Console",
+    console: Console,
 ) -> int:
     """Print code sections to *console*. Returns total character count for tokens."""
     if not code_files:
@@ -288,6 +286,7 @@ def _render_code_to_string(
 
 # ── JSON serialisation ────────────────────────────────────────────────────────
 
+
 def _node_to_dict(node: TreeNode, config: TreeConfig) -> Dict[str, Any]:
     """Recursively convert a ``TreeNode`` to a JSON-serialisable dict."""
     d: Dict[str, Any] = {
@@ -295,32 +294,35 @@ def _node_to_dict(node: TreeNode, config: TreeConfig) -> Dict[str, Any]:
         "type": "directory" if node.is_dir else "file",
         "path": str(node.path.resolve()).replace("\\", "/"),
     }
+    if node.size is not None:
+        d["size_bytes"] = node.size
+        d["size_human"] = get_human_readable_size(node.size)
     if not node.is_dir:
         d["extension"] = node.extension
-        d["size_bytes"] = node.size
-        d["size_human"] = get_human_readable_size(node.size) if node.size is not None else None
         d["is_binary"] = node.is_binary
         d["is_symlink"] = node.is_symlink
         if node.is_symlink:
             d["symlink_target"] = node.symlink_target
+    else:
+        d["is_symlink"] = node.is_symlink
+        if node.is_symlink:
+            d["symlink_target"] = node.symlink_target
+        d["children"] = [_node_to_dict(c, config) for c in node.children]
     if node.git_status:
         d["git_status"] = node.git_status
     if node.error:
         d["error"] = node.error
-    if node.is_dir:
-        d["children"] = [_node_to_dict(c, config) for c in node.children]
-        if config.code:
-            # Inline file contents for dirs at leaf level? No — keep clean.
-            pass
-    elif config.code and not node.is_binary:
+    if not node.is_dir and config.code and not node.is_binary:
         # Attach content if code mode is on
         from .filters import is_code_file
+
         if is_code_file(node.name, node.extension):
             d["content"] = _read_file_safe(node.path)
     return d
 
 
 # ── Main Renderer class ───────────────────────────────────────────────────────
+
 
 class Renderer:
     """
@@ -360,7 +362,7 @@ class Renderer:
             console.print(rich_tree)
         else:
             # Graceful fallback when rich is somehow unavailable
-            print(result.root.display_name)
+            print(_make_plain_label(result.root, cfg))
             for line in _render_plain_lines(result.root, cfg):
                 print(line)
 
@@ -382,9 +384,7 @@ class Renderer:
             )
             if cfg.token_count:
                 tokens = estimate_tokens(char_count)
-                console.print(
-                    f"\n[dim]Estimated tokens: {format_token_count(tokens)}[/dim]"
-                )
+                console.print(f"\n[dim]Estimated tokens: {format_token_count(tokens)}[/dim]")
 
     def to_string(self, result: WalkResult) -> str:
         """Render to a plain string (no ANSI codes) for file / clipboard."""
@@ -397,7 +397,7 @@ class Renderer:
             return self.to_markdown(result)
 
         # ── plain text ────────────────────────────────────────────────────────
-        lines: List[str] = [result.root.display_name]
+        lines: List[str] = [_make_plain_label(result.root, cfg)]
         lines.extend(_render_plain_lines(result.root, cfg))
 
         if cfg.summary:
@@ -477,6 +477,7 @@ class Renderer:
         md_str = self.to_markdown(result)
         if _RICH_AVAILABLE and not self.config.no_color:
             from rich.markdown import Markdown
+
             console = Console(safe_box=True)
             console.print(Markdown(md_str))
         else:

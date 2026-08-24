@@ -5,6 +5,7 @@ Pure directory traversal.  Takes a ``TreeConfig`` and returns a ``WalkResult``
 containing the root ``TreeNode`` tree, a list of code files to display, and
 aggregate statistics.  No I/O other than reading the filesystem.
 """
+
 from __future__ import annotations
 
 import os
@@ -25,8 +26,8 @@ from .filters import (
 )
 from .tree_node import TreeNode, WalkResult, WalkStats
 
-
 # ── Sorting ───────────────────────────────────────────────────────────────────
+
 
 def _sort_entries(entries: List[str], base: Path, sort: str) -> List[str]:
     """
@@ -39,6 +40,7 @@ def _sort_entries(entries: List[str], base: Path, sort: str) -> List[str]:
         (dirs if (base / e).is_dir() else files).append(e)
 
     if sort == "size":
+
         def _size(name: str) -> int:
             try:
                 return (base / name).stat().st_size
@@ -49,6 +51,7 @@ def _sort_entries(entries: List[str], base: Path, sort: str) -> List[str]:
         dirs.sort()
 
     elif sort == "mtime":
+
         def _mtime(name: str) -> float:
             try:
                 return (base / name).stat().st_mtime
@@ -69,7 +72,86 @@ def _sort_entries(entries: List[str], base: Path, sort: str) -> List[str]:
     return dirs + files
 
 
+# ── Directory size calculation ────────────────────────────────────────────────
+
+
+def _compute_dir_size(
+    dir_path: Path,
+    relative_path: str,
+    config: TreeConfig,
+    gitignore_stack: GitignoreStack,
+    ignore_patterns: List[str],
+) -> int:
+    """
+    Recursively compute the total size in bytes of all matching files within *dir_path*,
+    taking into account active filters (hidden files, gitignore, ignore patterns, pattern).
+    """
+    total = 0
+    try:
+        entries = os.listdir(dir_path)
+    except OSError:
+        return 0
+
+    for entry in entries:
+        full = dir_path / entry
+        try:
+            is_symlink = os.path.islink(str(full))
+            is_dir = full.is_dir()
+        except OSError:
+            continue
+
+        # Always-skip set (e.g. __pycache__, .DS_Store) - unless --all
+        if entry in ALWAYS_SKIP and not config.all:
+            continue
+
+        # Hidden items (dirs or files starting with '.')
+        if not config.all and entry.startswith("."):
+            continue
+
+        # --ignore patterns
+        if ignore_patterns and matches_any(entry, ignore_patterns):
+            continue
+
+        rel = (relative_path + "/" + entry) if relative_path else entry
+
+        # gitignore check
+        if config.use_gitignore and pathspec:
+            check_path = rel + "/" if is_dir else rel
+            if gitignore_stack.matches(check_path) or gitignore_stack.matches(rel):
+                continue
+
+        if is_dir:
+            if not is_symlink or config.follow_symlinks:
+                child_stack = gitignore_stack.child()
+                if config.use_gitignore and pathspec:
+                    nested_gi = full / ".gitignore"
+                    if nested_gi.is_file():
+                        child_stack.push(rel, nested_gi)
+                total += _compute_dir_size(
+                    full,
+                    rel,
+                    config,
+                    child_stack,
+                    ignore_patterns,
+                )
+        else:
+            if config.pattern:
+                import fnmatch as _fnm
+
+                if not _fnm.fnmatch(entry, config.pattern):
+                    continue
+            if config.dirs_only:
+                continue
+            try:
+                total += full.stat().st_size
+            except OSError:
+                pass
+
+    return total
+
+
 # ── Internal recursive walker ─────────────────────────────────────────────────
+
 
 def _walk(
     path: Path,
@@ -131,6 +213,7 @@ def _walk(
         # --pattern applies to files only (always descend into directories)
         if config.pattern and not is_dir:
             import fnmatch as _fnm
+
             if not _fnm.fnmatch(entry, config.pattern):
                 continue
 
@@ -212,31 +295,50 @@ def _walk(
         parent_node.children.append(node)
 
         # ── Recurse into directories ──────────────────────────────────────────
-        if is_dir and (not is_symlink or config.follow_symlinks):
-            child_stack = gitignore_stack.child()
-            # Load nested .gitignore if present
-            if config.use_gitignore and pathspec:
-                nested_gi = full / ".gitignore"
-                if nested_gi.is_file():
-                    child_stack.push(rel_entry, nested_gi)
+        if is_dir:
+            if not is_symlink or config.follow_symlinks:
+                child_stack = gitignore_stack.child()
+                # Load nested .gitignore if present
+                if config.use_gitignore and pathspec:
+                    nested_gi = full / ".gitignore"
+                    if nested_gi.is_file():
+                        child_stack.push(rel_entry, nested_gi)
 
-            _walk(
-                path=full,
-                relative_path=rel_entry,
-                depth=depth + 1,
-                config=config,
-                gitignore_stack=child_stack,
-                git_status=git_status,
-                ignore_patterns=ignore_patterns,
-                exclude_patterns=exclude_patterns,
-                max_size_bytes=max_size_bytes,
-                stats=stats,
-                code_files=code_files,
-                parent_node=node,
-            )
+                if config.level != -1 and depth + 1 >= config.level:
+                    # Max visual depth reached; compute directory size without expanding children
+                    node.size = _compute_dir_size(
+                        dir_path=full,
+                        relative_path=rel_entry,
+                        config=config,
+                        gitignore_stack=child_stack,
+                        ignore_patterns=ignore_patterns,
+                    )
+                else:
+                    _walk(
+                        path=full,
+                        relative_path=rel_entry,
+                        depth=depth + 1,
+                        config=config,
+                        gitignore_stack=child_stack,
+                        git_status=git_status,
+                        ignore_patterns=ignore_patterns,
+                        exclude_patterns=exclude_patterns,
+                        max_size_bytes=max_size_bytes,
+                        stats=stats,
+                        code_files=code_files,
+                        parent_node=node,
+                    )
+                    # Sized bottom-up after children have been populated
+                    node.size = sum(c.size for c in node.children if c.size is not None)
+            else:
+                try:
+                    node.size = full.lstat().st_size
+                except OSError:
+                    node.size = 0
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
+
 
 def walk(root: Path, config: TreeConfig, git_status: Dict[str, str]) -> WalkResult:
     """
@@ -276,19 +378,29 @@ def walk(root: Path, config: TreeConfig, git_status: Dict[str, str]) -> WalkResu
         is_dir=True,
     )
 
-    _walk(
-        path=root,
-        relative_path="",
-        depth=0,
-        config=config,
-        gitignore_stack=gitignore_stack,
-        git_status=git_status,
-        ignore_patterns=ignore_patterns,
-        exclude_patterns=exclude_patterns,
-        max_size_bytes=max_size_bytes,
-        stats=stats,
-        code_files=code_files,
-        parent_node=root_node,
-    )
+    if config.level == 0:
+        root_node.size = _compute_dir_size(
+            dir_path=root,
+            relative_path="",
+            config=config,
+            gitignore_stack=gitignore_stack,
+            ignore_patterns=ignore_patterns,
+        )
+    else:
+        _walk(
+            path=root,
+            relative_path="",
+            depth=0,
+            config=config,
+            gitignore_stack=gitignore_stack,
+            git_status=git_status,
+            ignore_patterns=ignore_patterns,
+            exclude_patterns=exclude_patterns,
+            max_size_bytes=max_size_bytes,
+            stats=stats,
+            code_files=code_files,
+            parent_node=root_node,
+        )
+        root_node.size = sum(c.size for c in root_node.children if c.size is not None)
 
     return WalkResult(root=root_node, code_files=code_files, stats=stats)

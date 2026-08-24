@@ -4,11 +4,8 @@ tests/test_walker.py
 Integration tests for treely.walker.walk — verifies tree structure, filtering,
 gitignore support, depth limiting, sorting, and code-file collection.
 """
+
 from __future__ import annotations
-
-from pathlib import Path
-
-import pytest
 
 from treely.config import TreeConfig
 from treely.walker import walk
@@ -30,6 +27,7 @@ def _all_names(node, names=None) -> list[str]:
 
 
 # ── Basic structure ────────────────────────────────────────────────────────────
+
 
 class TestBasicWalk:
     def test_root_node_defaults(self, simple_project):
@@ -68,6 +66,7 @@ class TestBasicWalk:
 
 # ── Depth limiting ─────────────────────────────────────────────────────────────
 
+
 class TestDepthLimit:
     def test_level_1_no_children_descend(self, deep_project):
         config = TreeConfig(root_path=str(deep_project), level=1)
@@ -92,6 +91,7 @@ class TestDepthLimit:
 
 
 # ── Gitignore filtering ────────────────────────────────────────────────────────
+
 
 class TestGitignoreFiltering:
     def test_gitignore_excludes_dist(self, simple_project):
@@ -118,6 +118,7 @@ class TestGitignoreFiltering:
 
 # ── Ignore patterns ────────────────────────────────────────────────────────────
 
+
 class TestIgnorePatterns:
     def test_ignore_by_name(self, simple_project):
         config = TreeConfig(root_path=str(simple_project), ignore="dist")
@@ -139,6 +140,7 @@ class TestIgnorePatterns:
 
 # ── --dirs-only / --files-only ────────────────────────────────────────────────
 
+
 class TestDirsFilesOnly:
     def test_dirs_only(self, simple_project):
         config = TreeConfig(root_path=str(simple_project), dirs_only=True)
@@ -154,6 +156,7 @@ class TestDirsFilesOnly:
 
 
 # ── Pattern filter ─────────────────────────────────────────────────────────────
+
 
 class TestPatternFilter:
     def test_pattern_filters_files(self, simple_project):
@@ -172,6 +175,7 @@ class TestPatternFilter:
 
 
 # ── Sorting ────────────────────────────────────────────────────────────────────
+
 
 class TestSorting:
     def test_default_sort_dirs_first(self, simple_project):
@@ -201,6 +205,7 @@ class TestSorting:
 
 
 # ── Code file collection ───────────────────────────────────────────────────────
+
 
 class TestCodeFileCollection:
     def test_code_files_collected(self, simple_project):
@@ -243,6 +248,7 @@ class TestCodeFileCollection:
 
 
 # ── Symlink handling ───────────────────────────────────────────────────────────
+
 
 class TestSymlinks:
     def test_symlink_detected(self, symlink_project):
@@ -287,6 +293,7 @@ class TestSymlinks:
 
 # ── Git status annotation ──────────────────────────────────────────────────────
 
+
 class TestGitStatus:
     def test_git_status_annotated(self, simple_project):
         git_status = {"src/main.py": "M", "README.md": "A"}
@@ -304,6 +311,65 @@ class TestGitStatus:
         all_nodes = _collect_all_nodes(result.root)
         for node in all_nodes:
             assert node.git_status is None
+
+
+# ── Directory sizing ──────────────────────────────────────────────────────────
+
+
+class TestDirectorySizes:
+    def test_dir_size_unlimited_depth(self, simple_project):
+        config = TreeConfig(root_path=str(simple_project))
+        result = walk(simple_project, config, {})
+        src_node = next(c for c in result.root.children if c.name == "src")
+        assert src_node.is_dir
+        assert src_node.size is not None
+        main_size = (simple_project / "src" / "main.py").stat().st_size
+        utils_size = (simple_project / "src" / "utils.py").stat().st_size
+        assert src_node.size == main_size + utils_size
+
+    def test_dir_size_with_depth_limit_level_1(self, simple_project):
+        config = TreeConfig(root_path=str(simple_project), level=1)
+        result = walk(simple_project, config, {})
+        src_node = next(c for c in result.root.children if c.name == "src")
+        assert src_node.is_dir
+        assert len(src_node.children) == 0  # not expanded due to -L 1
+        assert src_node.size is not None
+        main_size = (simple_project / "src" / "main.py").stat().st_size
+        utils_size = (simple_project / "src" / "utils.py").stat().st_size
+        assert src_node.size == main_size + utils_size
+
+    def test_dir_size_respects_gitignore(self, nested_gitignore_project):
+        config = TreeConfig(
+            root_path=str(nested_gitignore_project),
+            use_gitignore=True,
+        )
+        result = walk(nested_gitignore_project, config, {})
+        subdir_node = next(c for c in result.root.children if c.name == "subdir")
+        assert subdir_node.is_dir
+        # subdir contains code.py (included) and sub.tmp (ignored by subdir/.gitignore)
+        code_size = (nested_gitignore_project / "subdir" / "code.py").stat().st_size
+        assert subdir_node.size == code_size
+
+    def test_dir_size_respects_ignore_patterns(self, simple_project):
+        config = TreeConfig(root_path=str(simple_project), ignore="utils.py")
+        result = walk(simple_project, config, {})
+        src_node = next(c for c in result.root.children if c.name == "src")
+        main_size = (simple_project / "src" / "main.py").stat().st_size
+        assert src_node.size == main_size
+
+    def test_empty_dir_size_is_zero(self, tmp_path):
+        empty = tmp_path / "empty_dir"
+        empty.mkdir()
+        config = TreeConfig(root_path=str(tmp_path))
+        result = walk(tmp_path, config, {})
+        empty_node = next(c for c in result.root.children if c.name == "empty_dir")
+        assert empty_node.size == 0
+
+    def test_root_node_size_matches_children_sum(self, simple_project):
+        config = TreeConfig(root_path=str(simple_project))
+        result = walk(simple_project, config, {})
+        assert result.root.size is not None
+        assert result.root.size == sum(c.size for c in result.root.children if c.size is not None)
 
 
 def _collect_all_nodes(node, nodes=None):

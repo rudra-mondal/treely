@@ -3,12 +3,11 @@ tests/test_renderer.py
 ~~~~~~~~~~~~~~~~~~~~~~
 Tests for the Renderer class: text, JSON, and Markdown output modes.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
-
-import pytest
 
 from treely.config import TreeConfig
 from treely.renderer import Renderer
@@ -24,6 +23,7 @@ def _render_text(project: Path, **kw) -> str:
 
 
 # ── Text format ───────────────────────────────────────────────────────────────
+
 
 class TestTextFormat:
     def test_root_name_in_output(self, simple_project):
@@ -49,6 +49,31 @@ class TestTextFormat:
         # Should contain a size indicator like "1.2K" or "256B"
         assert any(sfx in out for sfx in ["B", "K", "M", "G"])
 
+    def test_show_size_shows_both_file_and_folder_sizes(self, simple_project):
+        out = _render_text(simple_project, show_size=True)
+        # Both directory (src/) and file (main.py) should have size badges
+        lines = [line.strip() for line in out.splitlines()]
+        src_line = next((item for item in lines if "src/" in item), None)
+        main_line = next((item for item in lines if "main.py" in item), None)
+        assert src_line is not None and "[" in src_line and "]" in src_line
+        assert main_line is not None and "[" in main_line and "]" in main_line
+
+    def test_show_file_size_only_files(self, simple_project):
+        out = _render_text(simple_project, show_file_size=True)
+        lines = [line.strip() for line in out.splitlines()]
+        src_line = next((item for item in lines if "src/" in item), None)
+        main_line = next((item for item in lines if "main.py" in item), None)
+        assert src_line is not None and "[" not in src_line
+        assert main_line is not None and "[" in main_line and "]" in main_line
+
+    def test_show_folder_size_only_folders(self, simple_project):
+        out = _render_text(simple_project, show_folder_size=True)
+        lines = [line.strip() for line in out.splitlines()]
+        src_line = next((item for item in lines if "src/" in item), None)
+        main_line = next((item for item in lines if "main.py" in item), None)
+        assert src_line is not None and "[" in src_line and "]" in src_line
+        assert main_line is not None and "[" not in main_line
+
     def test_code_content_included(self, simple_project):
         out = _render_text(simple_project, code=True)
         assert "FILE CONTENTS" in out
@@ -60,6 +85,7 @@ class TestTextFormat:
 
 
 # ── JSON format ───────────────────────────────────────────────────────────────
+
 
 class TestJsonFormat:
     def test_valid_json(self, simple_project):
@@ -108,8 +134,18 @@ class TestJsonFormat:
         assert "directories" in data["_summary"]
         assert "files" in data["_summary"]
 
+    def test_json_includes_directory_sizes(self, simple_project):
+        config = TreeConfig(root_path=str(simple_project), format="json")
+        result = walk(simple_project, config, {})
+        data = json.loads(Renderer(config).to_json(result))
+        assert data["type"] == "directory"
+        assert "size_bytes" in data
+        assert "size_human" in data
+        assert data["size_bytes"] is not None
+
 
 # ── Markdown format ───────────────────────────────────────────────────────────
+
 
 class TestMarkdownFormat:
     def test_fenced_code_block(self, simple_project):
@@ -147,6 +183,7 @@ class TestMarkdownFormat:
 
 # ── Token count ───────────────────────────────────────────────────────────────
 
+
 class TestTokenCount:
     def test_token_count_appears(self, simple_project):
         config = TreeConfig(
@@ -168,7 +205,9 @@ class TestTokenCount:
         out = Renderer(config).to_string(result)
         # Should contain digits
         import re
+
         assert re.search(r"\d+", out)
+
 
 class TestTokenCountConsole:
     def test_to_console_token_count_correct_value(self, simple_project, capsys):
@@ -183,6 +222,7 @@ class TestTokenCountConsole:
         renderer.to_console(result)
         out = capsys.readouterr().out
         assert "tokens" in out.lower()
+
 
 class TestWindowsEncoding:
     def test_rule_does_not_crash_with_ascii_only(self, simple_project, capsys):

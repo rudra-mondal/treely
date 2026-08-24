@@ -3,10 +3,12 @@ tests/conftest.py
 ~~~~~~~~~~~~~~~~~
 Shared pytest fixtures: reusable temporary directory structures for tests.
 """
+
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture

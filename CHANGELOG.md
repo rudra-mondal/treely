@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] — 2026-08-24
+
+### Added
+- `--show-file-size` flag: displays the size of files only (matching previous `--show-size` behavior).
+- `--show-folder-size` flag: displays the size of directories / folders only.
+- `show_file_size` and `show_folder_size` configuration support in `treely.toml` (`[defaults]` and `[profiles]`).
+- Directory node byte size (`size_bytes`) and human-readable size (`size_human`) in `--format json` output.
+- `treely/__main__.py` module entry point to enable running with `python -m treely`.
+
+### Changed
+- `--show-size` now displays sizes for **both** files and directories/folders (including when visual recursion depth limits like `-L 1` are set).
+- Directory sizes are calculated recursively over descendant files matching active filters (gitignore rules, pattern filters, ignore patterns, etc.).
+
+---
+
 ## [2.0.0] — 2026-04-17
 
 ### ⚠️ Breaking Changes

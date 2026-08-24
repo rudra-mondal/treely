@@ -4,6 +4,7 @@ treely.theme
 Theme definitions for the rich-powered rendering engine.
 Each Theme is a frozen dataclass that maps semantic roles to rich style strings.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,9 +21,9 @@ class Theme:
     dir_style: str
     file_style: str
     hidden_style: str
-    special_style: str      # .env, Dockerfile, Makefile, etc.
-    binary_style: str       # binary files
-    link_style: str         # symlinks
+    special_style: str  # .env, Dockerfile, Makefile, etc.
+    binary_style: str  # binary files
+    link_style: str  # symlinks
     error_style: str
 
     # Size badge
@@ -125,18 +126,18 @@ THEMES: Dict[str, Theme] = {
     # Nord colour palette  (https://www.nordtheme.com/docs/colors-and-palettes)
     "nord": Theme(
         name="nord",
-        dir_style="bold #81a1c1",       # Nord9 — frost blue
-        file_style="#d8dee9",           # Nord4 — snow storm
-        hidden_style="dim #4c566a",     # Nord3 — polar night
-        special_style="bold #ebcb8b",   # Nord13 — aurora yellow
+        dir_style="bold #81a1c1",  # Nord9 — frost blue
+        file_style="#d8dee9",  # Nord4 — snow storm
+        hidden_style="dim #4c566a",  # Nord3 — polar night
+        special_style="bold #ebcb8b",  # Nord13 — aurora yellow
         binary_style="dim #4c566a",
-        link_style="#88c0d0",           # Nord8 — frost
-        error_style="bold #bf616a",     # Nord11 — aurora red
+        link_style="#88c0d0",  # Nord8 — frost
+        error_style="bold #bf616a",  # Nord11 — aurora red
         size_style="dim #4c566a",
-        git_modified="#ebcb8b",         # Nord13
-        git_added="#a3be8c",            # Nord14 — aurora green
-        git_untracked="#4c566a",        # Nord3
-        git_deleted="#bf616a",          # Nord11
+        git_modified="#ebcb8b",  # Nord13
+        git_added="#a3be8c",  # Nord14 — aurora green
+        git_untracked="#4c566a",  # Nord3
+        git_deleted="#bf616a",  # Nord11
         git_ignored="dim #4c566a",
         guide_style="dim #4c566a",
         header_style="bold #88c0d0",

@@ -4,9 +4,8 @@ tests/test_filters.py
 Unit tests for treely.filters: code detection, binary detection, size
 parsing, pattern matching, and the GitignoreStack.
 """
-from __future__ import annotations
 
-from pathlib import Path
+from __future__ import annotations
 
 import pytest
 
@@ -20,8 +19,8 @@ from treely.filters import (
     parse_size,
 )
 
-
 # ── parse_size ────────────────────────────────────────────────────────────────
+
 
 class TestParseSize:
     def test_integer_only(self):
@@ -34,16 +33,16 @@ class TestParseSize:
         assert parse_size("1K") == 1024
 
     def test_megabytes(self):
-        assert parse_size("2M") == 2 * 1024 ** 2
+        assert parse_size("2M") == 2 * 1024**2
 
     def test_gigabytes(self):
-        assert parse_size("1G") == 1024 ** 3
+        assert parse_size("1G") == 1024**3
 
     def test_float_megabytes(self):
-        assert parse_size("1.5M") == int(1.5 * 1024 ** 2)
+        assert parse_size("1.5M") == int(1.5 * 1024**2)
 
     def test_lowercase(self):
-        assert parse_size("2m") == 2 * 1024 ** 2
+        assert parse_size("2m") == 2 * 1024**2
 
     def test_invalid_raises(self):
         with pytest.raises(ValueError):
@@ -55,6 +54,7 @@ class TestParseSize:
 
 
 # ── is_code_file ──────────────────────────────────────────────────────────────
+
 
 class TestIsCodeFile:
     def test_python(self):
@@ -90,6 +90,7 @@ class TestIsCodeFile:
 
 # ── is_binary_file ────────────────────────────────────────────────────────────
 
+
 class TestIsBinaryFile:
     def test_detects_null_bytes(self, tmp_path):
         p = tmp_path / "binary.bin"
@@ -113,6 +114,7 @@ class TestIsBinaryFile:
 
 # ── matches_any / matches_path_any ────────────────────────────────────────────
 
+
 class TestPatternMatching:
     def test_matches_glob(self):
         assert matches_any("file.log", ["*.log"]) is True
@@ -134,6 +136,7 @@ class TestPatternMatching:
 
 
 # ── GitignoreStack ────────────────────────────────────────────────────────────
+
 
 class TestGitignoreStack:
     def test_root_gitignore_ignores_file(self, tmp_path):

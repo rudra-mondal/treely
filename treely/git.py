@@ -7,12 +7,12 @@ Git integration: detect whether a path is inside a git repository and parse
 All operations are best-effort — any failure returns empty/False so the rest
 of treely continues to work in non-git environments.
 """
+
 from __future__ import annotations
 
 import os
 import subprocess
 from typing import Dict, List, Optional, Tuple
-
 
 # Status characters used in the tree (subset of git's XY codes)
 GIT_STATUS_MODIFIED = "M"
@@ -128,7 +128,7 @@ def get_git_info(root_path: str) -> Tuple[bool, Dict[str, str]]:
     for path, char in raw_map.items():
         if prefix:
             if path.startswith(prefix + "/"):
-                local_path = path[len(prefix) + 1:]
+                local_path = path[len(prefix) + 1 :]
             else:
                 continue  # outside our scan root
         else:

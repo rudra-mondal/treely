@@ -3,6 +3,7 @@ treely.tree_node
 ~~~~~~~~~~~~~~~~
 Pure data structures representing the directory tree. No I/O, no rendering.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -19,14 +20,14 @@ class TreeNode:
     is_dir: bool
 
     # Populated during walking
-    children: List["TreeNode"] = field(default_factory=list, repr=False)
-    size: Optional[int] = None          # bytes; None for dirs or on error
+    children: List[TreeNode] = field(default_factory=list, repr=False)
+    size: Optional[int] = None  # bytes; for files and dirs, or None on error
     is_symlink: bool = False
     symlink_target: Optional[str] = None
-    git_status: Optional[str] = None    # 'M', 'A', '?', 'D', '!'
+    git_status: Optional[str] = None  # 'M', 'A', '?', 'D', '!'
     is_binary: bool = False
-    extension: str = ""                 # lower-case, e.g. ".py"
-    error: Optional[str] = None        # e.g. "[Permission Denied]"
+    extension: str = ""  # lower-case, e.g. ".py"
+    error: Optional[str] = None  # e.g. "[Permission Denied]"
 
     # ------------------------------------------------------------------ helpers
 
@@ -39,11 +40,22 @@ class TreeNode:
     def is_special(self) -> bool:
         """True for well-known config/infra files that get highlight treatment."""
         _SPECIAL = {
-            ".env", ".env.local", ".env.example",
-            ".gitignore", ".gitattributes", ".dockerignore",
-            "Dockerfile", "docker-compose.yml", "docker-compose.yaml",
-            "Makefile", "makefile", "GNUmakefile",
-            "pyproject.toml", "package.json", "Cargo.toml", "go.mod",
+            ".env",
+            ".env.local",
+            ".env.example",
+            ".gitignore",
+            ".gitattributes",
+            ".dockerignore",
+            "Dockerfile",
+            "docker-compose.yml",
+            "docker-compose.yaml",
+            "Makefile",
+            "makefile",
+            "GNUmakefile",
+            "pyproject.toml",
+            "package.json",
+            "Cargo.toml",
+            "go.mod",
         }
         return self.name in _SPECIAL
 

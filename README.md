@@ -135,7 +135,7 @@ pip install -e ".[dev]"
 
 ```bash
 treely --version
-# treely 2.0.0
+# treely 2.1.0
 ```
 
 > **Note:** Ensure your Python `Scripts` directory is on your system `PATH`. On Windows this is typically `C:\Users\<You>\AppData\Local\Programs\Python\Python3xx\Scripts`.
@@ -171,7 +171,8 @@ treely --use-gitignore --show-size --summary
 ```
 usage: treely [-h] [--version] [-a] [-L LEVEL] [--sort MODE]
               [--dirs-only] [--files-only] [--full-path]
-              [--follow-symlinks] [--show-size] [-s]
+              [--follow-symlinks] [--show-size] [--show-file-size]
+              [--show-folder-size] [-s]
               [--pattern GLOB] [--ignore PATTERNS] [--use-gitignore]
               [--code] [--exclude PATTERNS] [--max-size SIZE]
               [--token-count] [--no-git]
@@ -210,7 +211,9 @@ treely "My Project With Spaces" # paths with spaces (use quotes)
 | `--files-only` | | off | Show only files, no subdirectories. |
 | `--full-path` | | off | Print the full absolute path of each entry instead of just the name. |
 | `--follow-symlinks` | | off | Follow symbolic links when recursing into directories. |
-| `--show-size` | | off | Display the size of each file as a badge (e.g. `[3.2K]`). |
+| `--show-size` | | off | Display the size of files and directories/folders as badges (e.g. `[3.2K]`). |
+| `--show-file-size` | | off | Display the size of each file only. |
+| `--show-folder-size` | | off | Display the size of each directory or folder only. |
 | `--summary` | `-s` | off | Print a count of total directories and files after the tree. |
 | `--version` | | | Print the installed version and exit. |
 
@@ -238,8 +241,14 @@ treely my-project --sort mtime
 # Sort by file extension (groups all .py, .js, etc. together)
 treely my-project --sort ext
 
-# Show file sizes and a summary count
+# Show both file and folder sizes
 treely my-project --show-size -s
+
+# Show file sizes only
+treely my-project --show-file-size
+
+# Show folder/directory sizes only (great with -L 1 for disk usage overviews)
+treely my-project -L 1 --show-folder-size -s
 
 # Show full absolute paths for every entry
 treely my-project --full-path
@@ -769,7 +778,9 @@ All configuration keys match their corresponding CLI flag names (with hyphens co
 | `files_only` | bool | Show only files |
 | `full_path` | bool | Print absolute paths |
 | `follow_symlinks` | bool | Follow symlinks |
-| `show_size` | bool | Show file sizes |
+| `show_size` | bool | Show file and folder sizes |
+| `show_file_size` | bool | Show file sizes only |
+| `show_folder_size` | bool | Show folder sizes only |
 | `summary` | bool | Print file/dir count |
 | `pattern` | string | File glob filter |
 | `ignore` | string | Pipe-separated ignore patterns |

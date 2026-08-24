@@ -7,12 +7,11 @@ Uses ``argparse``-level invocation via ``main()`` with ``sys.argv`` patching
 
 A small number of tests use subprocess to verify the installed entry point.
 """
+
 from __future__ import annotations
 
 import json
 import sys
-from io import StringIO
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -20,8 +19,8 @@ import pytest
 from treely import __version__
 from treely.main import main
 
-
 # ── Helper ────────────────────────────────────────────────────────────────────
+
 
 def run_main(args: list[str], capsys) -> tuple[str, str, int]:
     """
@@ -40,6 +39,7 @@ def run_main(args: list[str], capsys) -> tuple[str, str, int]:
 
 # ── --version ─────────────────────────────────────────────────────────────────
 
+
 class TestVersion:
     def test_version_exits_zero(self, capsys):
         _, _, code = run_main(["--version"], capsys)
@@ -53,40 +53,32 @@ class TestVersion:
 
 # ── Basic tree ────────────────────────────────────────────────────────────────
 
+
 class TestBasicTree:
     def test_runs_on_valid_dir(self, simple_project, capsys):
-        _, err, code = run_main(
-            [str(simple_project), "--no-banner", "--no-color"], capsys
-        )
+        _, err, code = run_main([str(simple_project), "--no-banner", "--no-color"], capsys)
         assert code == 0
         assert err == ""
 
     def test_output_contains_project_name(self, simple_project, capsys):
-        out, _, _ = run_main(
-            [str(simple_project), "--no-banner", "--no-color"], capsys
-        )
+        out, _, _ = run_main([str(simple_project), "--no-banner", "--no-color"], capsys)
         assert simple_project.name in out
 
     def test_output_contains_src_dir(self, simple_project, capsys):
-        out, _, _ = run_main(
-            [str(simple_project), "--no-banner", "--no-color"], capsys
-        )
+        out, _, _ = run_main([str(simple_project), "--no-banner", "--no-color"], capsys)
         assert "src" in out
 
     def test_output_contains_readme(self, simple_project, capsys):
-        out, _, _ = run_main(
-            [str(simple_project), "--no-banner", "--no-color"], capsys
-        )
+        out, _, _ = run_main([str(simple_project), "--no-banner", "--no-color"], capsys)
         assert "README.md" in out
 
 
 # ── Error handling ────────────────────────────────────────────────────────────
 
+
 class TestErrorHandling:
     def test_invalid_dir_exits_nonzero(self, capsys):
-        _, err, code = run_main(
-            ["/absolutely/nonexistent/path/xyz", "--no-banner"], capsys
-        )
+        _, err, code = run_main(["/absolutely/nonexistent/path/xyz", "--no-banner"], capsys)
         assert code != 0
         assert "Error" in err or "does not exist" in err
 
@@ -97,15 +89,11 @@ class TestErrorHandling:
         assert code != 0
 
     def test_exclude_without_code_is_error(self, simple_project, capsys):
-        _, err, code = run_main(
-            [str(simple_project), "--exclude", "*.log", "--no-banner"], capsys
-        )
+        _, err, code = run_main([str(simple_project), "--exclude", "*.log", "--no-banner"], capsys)
         assert code != 0
 
     def test_token_count_without_code_is_error(self, simple_project, capsys):
-        _, err, code = run_main(
-            [str(simple_project), "--token-count", "--no-banner"], capsys
-        )
+        _, err, code = run_main([str(simple_project), "--token-count", "--no-banner"], capsys)
         assert code != 0
 
     def test_dirs_only_and_files_only_error(self, simple_project, capsys):
@@ -118,11 +106,10 @@ class TestErrorHandling:
 
 # ── Filtering flags ───────────────────────────────────────────────────────────
 
+
 class TestFilteringFlags:
     def test_level_limits_depth(self, deep_project, capsys):
-        out, _, code = run_main(
-            [str(deep_project), "--no-banner", "--no-color", "-L", "1"], capsys
-        )
+        out, _, code = run_main([str(deep_project), "--no-banner", "--no-color", "-L", "1"], capsys)
         assert code == 0
         # deep.py is at depth 2, should NOT appear
         assert "deep.py" not in out
@@ -145,9 +132,7 @@ class TestFilteringFlags:
         assert "README.md" not in out
 
     def test_summary_printed(self, simple_project, capsys):
-        out, _, _ = run_main(
-            [str(simple_project), "--no-banner", "--no-color", "-s"], capsys
-        )
+        out, _, _ = run_main([str(simple_project), "--no-banner", "--no-color", "-s"], capsys)
         assert "directories" in out and "files" in out
 
     def test_show_size_adds_badge(self, simple_project, capsys):
@@ -157,14 +142,75 @@ class TestFilteringFlags:
         )
         assert any(sfx in out for sfx in ["B", "K", "M"])
 
+    def test_show_size_level_1_shows_files_and_folders(self, simple_project, capsys):
+        # User scenario: treely -L 1 -a --show-size -s
+        out, _, code = run_main(
+            [
+                str(simple_project),
+                "-L",
+                "1",
+                "-a",
+                "--show-size",
+                "-s",
+                "--no-banner",
+                "--no-color",
+            ],
+            capsys,
+        )
+        assert code == 0
+        lines = [line.strip() for line in out.splitlines()]
+        src_line = next((item for item in lines if "src/" in item), None)
+        readme_line = next((item for item in lines if "README.md" in item), None)
+        assert src_line is not None and "[" in src_line and "]" in src_line
+        assert readme_line is not None and "[" in readme_line and "]" in readme_line
+        assert "directories" in out and "files" in out
+
+    def test_show_file_size_flag(self, simple_project, capsys):
+        out, _, code = run_main(
+            [str(simple_project), "-L", "1", "-a", "--show-file-size", "--no-banner", "--no-color"],
+            capsys,
+        )
+        assert code == 0
+        lines = [line.strip() for line in out.splitlines()]
+        src_line = next((item for item in lines if "src/" in item), None)
+        readme_line = next((item for item in lines if "README.md" in item), None)
+        assert src_line is not None and "[" not in src_line
+        assert readme_line is not None and "[" in readme_line and "]" in readme_line
+
+    def test_show_folder_size_flag(self, simple_project, capsys):
+        out, _, code = run_main(
+            [
+                str(simple_project),
+                "-L",
+                "1",
+                "-a",
+                "--show-folder-size",
+                "--no-banner",
+                "--no-color",
+            ],
+            capsys,
+        )
+        assert code == 0
+        lines = [line.strip() for line in out.splitlines()]
+        src_line = next((item for item in lines if "src/" in item), None)
+        readme_line = next((item for item in lines if "README.md" in item), None)
+        assert src_line is not None and "[" in src_line and "]" in src_line
+        assert readme_line is not None and "[" not in readme_line
+
+    def test_help_contains_size_flags(self, capsys):
+        out, _, code = run_main(["--help"], capsys)
+        assert code == 0
+        assert "--show-size" in out
+        assert "--show-file-size" in out
+        assert "--show-folder-size" in out
+
 
 # ── Output formats ────────────────────────────────────────────────────────────
 
+
 class TestOutputFormats:
     def test_json_format_is_valid_json(self, simple_project, capsys):
-        out, _, code = run_main(
-            [str(simple_project), "--no-banner", "--format", "json"], capsys
-        )
+        out, _, code = run_main([str(simple_project), "--no-banner", "--format", "json"], capsys)
         assert code == 0
         data = json.loads(out)
         assert data["type"] == "directory"
@@ -178,14 +224,13 @@ class TestOutputFormats:
         assert "```" in out
 
     def test_text_format_default(self, simple_project, capsys):
-        out, _, code = run_main(
-            [str(simple_project), "--no-banner", "--no-color"], capsys
-        )
+        out, _, code = run_main([str(simple_project), "--no-banner", "--no-color"], capsys)
         assert code == 0
         assert "├──" in out or "└──" in out
 
 
 # ── Code output ───────────────────────────────────────────────────────────────
+
 
 class TestCodeOutput:
     def test_code_flag_shows_content(self, simple_project, capsys):
@@ -216,6 +261,7 @@ class TestCodeOutput:
 
 
 # ── File output ───────────────────────────────────────────────────────────────
+
 
 class TestFileOutput:
     def test_output_creates_file(self, simple_project, tmp_path, capsys):
@@ -249,6 +295,7 @@ class TestFileOutput:
 
 # ── Theme flag ────────────────────────────────────────────────────────────────
 
+
 class TestThemeFlag:
     @pytest.mark.parametrize("theme", ["default", "dark", "light", "minimal", "nord"])
     def test_theme_accepted(self, theme, simple_project, capsys):
@@ -258,13 +305,16 @@ class TestThemeFlag:
         )
         assert code == 0
 
+
 # ── Config Precedence (B-1 Fix coverage) ──────────────────────────────────────
+
 
 class TestConfigPrecedence:
     def test_file_theme_not_overridden_by_default(self, simple_project, tmp_path):
         config_file = tmp_path / "treely.toml"
         config_file.write_text('[defaults]\ntheme = "nord"')
         from treely.main import _build_config, _build_parser
+
         parser = _build_parser()
         args = parser.parse_args([str(simple_project), "--config", str(config_file)])
         config = _build_config(args)
@@ -274,6 +324,7 @@ class TestConfigPrecedence:
         config_file = tmp_path / "treely.toml"
         config_file.write_text('[defaults]\nsort = "mtime"')
         from treely.main import _build_config, _build_parser
+
         parser = _build_parser()
         args = parser.parse_args([str(simple_project), "--config", str(config_file)])
         config = _build_config(args)
@@ -283,7 +334,10 @@ class TestConfigPrecedence:
         config_file = tmp_path / "treely.toml"
         config_file.write_text('[defaults]\ntheme = "nord"')
         from treely.main import _build_config, _build_parser
+
         parser = _build_parser()
-        args = parser.parse_args([str(simple_project), "--theme", "dark", "--config", str(config_file)])
+        args = parser.parse_args(
+            [str(simple_project), "--theme", "dark", "--config", str(config_file)]
+        )
         config = _build_config(args)
         assert config.theme == "dark"

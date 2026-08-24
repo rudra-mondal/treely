@@ -4,6 +4,7 @@ tests/test_config_file.py
 Tests for treely.config_file: TOML loading, defaults application, and profile
 system.
 """
+
 from __future__ import annotations
 
 import sys
@@ -20,6 +21,7 @@ from treely.config_file import (
 )
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _write_toml(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
@@ -48,6 +50,7 @@ show_size = true
 
 
 # ── find_config_file ──────────────────────────────────────────────────────────
+
 
 class TestFindConfigFile:
     def test_explicit_path_found(self, tmp_path):
@@ -84,6 +87,7 @@ class TestFindConfigFile:
 
 # ── load_config_file ──────────────────────────────────────────────────────────
 
+
 @pytest.mark.skipif(
     sys.version_info < (3, 11),
     reason="tomllib built-in only on Python 3.11+ (use tomli for older versions)",
@@ -116,6 +120,7 @@ class TestLoadConfigFile:
 
 
 # ── apply_config_file ─────────────────────────────────────────────────────────
+
 
 class TestApplyConfigFile:
     def _make_data(self):
@@ -186,8 +191,18 @@ class TestApplyConfigFile:
         assert config.no_banner is True
         assert config.show_size is True
 
+    def test_show_file_size_and_show_folder_size_applied(self):
+        config = TreeConfig()
+        data = {"defaults": {"show-file-size": True, "show_folder_size": True}}
+        config = apply_config_file(config, data)
+        assert config.show_file_size is True
+        assert config.show_folder_size is True
+        assert config.should_show_file_size() is True
+        assert config.should_show_folder_size() is True
+
 
 # ── list_profiles ─────────────────────────────────────────────────────────────
+
 
 class TestListProfiles:
     def test_returns_profile_names(self):
@@ -200,9 +215,12 @@ class TestListProfiles:
     def test_empty_when_no_profiles_key(self):
         assert list_profiles({"defaults": {}}) == []
 
+
 # ── Import behaviour ──────────────────────────────────────────────────────────
+
 
 class TestTomlImport:
     def test_has_toml_flag_set_correctly(self):
         from treely.config_file import _HAS_TOML
+
         assert _HAS_TOML is True

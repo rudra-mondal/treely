@@ -4,15 +4,16 @@ treely.output
 Output handling: banner, clipboard, file writing, stdout.
 All I/O concerns that aren't filesystem traversal or rendering live here.
 """
+
 from __future__ import annotations
 
 import sys
 import time
 from pathlib import Path
-from typing import Optional
 
 try:
     import pyperclip  # type: ignore[import]
+
     _PYPERCLIP = True
 except ImportError:
     _PYPERCLIP = False
@@ -57,6 +58,7 @@ def print_banner(no_banner: bool = False, no_color: bool = False) -> None:
 
 # ── Success / error messages ──────────────────────────────────────────────────
 
+
 def _green(msg: str) -> str:
     return f"\033[32m{msg}\033[0m"
 
@@ -67,6 +69,7 @@ def _red(msg: str) -> str:
 
 # ── Clipboard ─────────────────────────────────────────────────────────────────
 
+
 def copy_to_clipboard(content: str) -> None:
     """
     Copy *content* to the system clipboard using ``pyperclip``.
@@ -74,10 +77,7 @@ def copy_to_clipboard(content: str) -> None:
     """
     if not _PYPERCLIP:
         print(
-            _red(
-                "Error: 'pyperclip' is not installed. "
-                "Run 'pip install pyperclip' to use --copy."
-            ),
+            _red("Error: 'pyperclip' is not installed. Run 'pip install pyperclip' to use --copy."),
             file=sys.stderr,
         )
         sys.exit(1)
@@ -91,6 +91,7 @@ def copy_to_clipboard(content: str) -> None:
 
 
 # ── File writing ──────────────────────────────────────────────────────────────
+
 
 def write_to_file(content: str, filename: str) -> None:
     """
@@ -106,6 +107,7 @@ def write_to_file(content: str, filename: str) -> None:
 
 
 # ── Validation helpers ────────────────────────────────────────────────────────
+
 
 def check_pyperclip() -> None:
     """Print an error and exit if pyperclip is not installed."""

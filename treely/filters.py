@@ -5,6 +5,7 @@ All filtering logic: code-file detection, binary-file heuristic, pattern
 matching, size parsing, and a stacking gitignore resolver for nested
 ``.gitignore`` files.
 """
+
 from __future__ import annotations
 
 import fnmatch
@@ -22,79 +23,134 @@ except ImportError:
 
 CODE_EXTENSIONS: Set[str] = {
     # Systems / compiled
-    ".py", ".pyi",
-    ".js", ".mjs", ".cjs",
-    ".ts", ".mts",
-    ".jsx", ".tsx",
+    ".py",
+    ".pyi",
+    ".js",
+    ".mjs",
+    ".cjs",
+    ".ts",
+    ".mts",
+    ".jsx",
+    ".tsx",
     ".java",
-    ".c", ".h",
-    ".cpp", ".cc", ".cxx", ".hpp", ".hh",
+    ".c",
+    ".h",
+    ".cpp",
+    ".cc",
+    ".cxx",
+    ".hpp",
+    ".hh",
     ".cs",
     ".go",
     ".rs",
     ".php",
     ".rb",
-    ".kt", ".kts",
+    ".kt",
+    ".kts",
     ".swift",
-    ".m", ".mm",
+    ".m",
+    ".mm",
     ".dart",
     ".scala",
     ".lua",
-    ".pl", ".pm",
-    ".r", ".R",
+    ".pl",
+    ".pm",
+    ".r",
+    ".R",
     ".jl",
-    ".ex", ".exs",
-    ".erl", ".hrl",
-    ".clj", ".cljs", ".cljc",
+    ".ex",
+    ".exs",
+    ".erl",
+    ".hrl",
+    ".clj",
+    ".cljs",
+    ".cljc",
     ".hs",
     ".elm",
-    ".fs", ".fsx", ".fsi",
-    ".ml", ".mli",
+    ".fs",
+    ".fsx",
+    ".fsi",
+    ".ml",
+    ".mli",
     ".nim",
     ".zig",
     ".v",
     # Shell / scripting
-    ".sh", ".bash", ".zsh", ".fish",
-    ".bat", ".cmd",
-    ".ps1", ".psm1", ".psd1",
+    ".sh",
+    ".bash",
+    ".zsh",
+    ".fish",
+    ".bat",
+    ".cmd",
+    ".ps1",
+    ".psm1",
+    ".psd1",
     # Web
-    ".html", ".htm",
-    ".css", ".scss", ".sass", ".less",
-    ".svelte", ".vue", ".astro",
+    ".html",
+    ".htm",
+    ".css",
+    ".scss",
+    ".sass",
+    ".less",
+    ".svelte",
+    ".vue",
+    ".astro",
     # Data / config
     ".sql",
     ".xml",
-    ".json", ".jsonc", ".json5",
-    ".yaml", ".yml",
+    ".json",
+    ".jsonc",
+    ".json5",
+    ".yaml",
+    ".yml",
     ".toml",
-    ".ini", ".cfg", ".conf",
+    ".ini",
+    ".cfg",
+    ".conf",
     ".env",
     # Build
-    ".make", ".mk",
+    ".make",
+    ".mk",
     ".dockerfile",
     ".gradle",
-    ".tf", ".hcl",
+    ".tf",
+    ".hcl",
     # Docs
-    ".md", ".mdx",
+    ".md",
+    ".mdx",
     ".rst",
     ".tex",
     # Misc
     ".proto",
-    ".graphql", ".gql",
+    ".graphql",
+    ".gql",
     ".tsbuildinfo",
     # dotfiles treated as code
-    ".gitignore", ".gitattributes", ".dockerignore",
+    ".gitignore",
+    ".gitattributes",
+    ".dockerignore",
     ".editorconfig",
     ".debug",
 }
 
 # Extension-less filenames that are always treated as code
 _CODE_NAMES: Set[str] = {
-    "Makefile", "makefile", "GNUmakefile",
-    "Dockerfile", "Containerfile",
-    "Jenkinsfile", "Vagrantfile", "Procfile",
-    "Gemfile", "Rakefile", "Guardfile",
-    ".env", ".gitignore", ".gitattributes", ".dockerignore", ".editorconfig",
+    "Makefile",
+    "makefile",
+    "GNUmakefile",
+    "Dockerfile",
+    "Containerfile",
+    "Jenkinsfile",
+    "Vagrantfile",
+    "Procfile",
+    "Gemfile",
+    "Rakefile",
+    "Guardfile",
+    ".env",
+    ".gitignore",
+    ".gitattributes",
+    ".dockerignore",
+    ".editorconfig",
 }
 
 # Entries that are *always* hidden regardless of --all
@@ -102,6 +158,7 @@ ALWAYS_SKIP: Set[str] = {"__pycache__", ".DS_Store", "Thumbs.db", ".git"}
 
 
 # ── Code-file detection ───────────────────────────────────────────────────────
+
 
 def is_code_file(name: str, extension: str) -> bool:
     """
@@ -119,6 +176,7 @@ def is_code_file(name: str, extension: str) -> bool:
 
 
 # ── Binary detection ─────────────────────────────────────────────────────────
+
 
 def is_binary_file(path: Path, sample_bytes: int = 8192) -> bool:
     """
@@ -138,13 +196,13 @@ def is_binary_file(path: Path, sample_bytes: int = 8192) -> bool:
             return False
 
         return b"\x00" in chunk
-    except (OSError, IOError):
+    except OSError:
         return False
 
 
 # ── Size parsing ──────────────────────────────────────────────────────────────
 
-_SIZE_UNITS = {"B": 1, "K": 1024, "M": 1024 ** 2, "G": 1024 ** 3, "T": 1024 ** 4}
+_SIZE_UNITS = {"B": 1, "K": 1024, "M": 1024**2, "G": 1024**3, "T": 1024**4}
 
 
 def parse_size(size_str: str) -> int:
@@ -170,6 +228,7 @@ def parse_size(size_str: str) -> int:
 
 # ── Pattern matching ──────────────────────────────────────────────────────────
 
+
 def matches_any(name: str, patterns: List[str]) -> bool:
     """Return ``True`` if *name* matches any of the glob *patterns*."""
     return any(fnmatch.fnmatch(name, pat) for pat in patterns)
@@ -190,6 +249,7 @@ def matches_path_any(relative_path: str, patterns: List[str]) -> bool:
 
 
 # ── Nested-gitignore resolver ─────────────────────────────────────────────────
+
 
 class GitignoreStack:
     """
@@ -218,13 +278,13 @@ class GitignoreStack:
         if pathspec is None:
             return
         try:
-            with open(gitignore_path, "r", encoding="utf-8", errors="ignore") as fh:
+            with open(gitignore_path, encoding="utf-8", errors="ignore") as fh:
                 spec = pathspec.PathSpec.from_lines("gitwildmatch", fh)
             self._specs.append((dir_prefix, spec))
         except OSError:
             pass
 
-    def child(self) -> "GitignoreStack":
+    def child(self) -> GitignoreStack:
         """Return a new stack that inherits the current specs (for recursion)."""
         return GitignoreStack(self._specs)
 
@@ -236,12 +296,9 @@ class GitignoreStack:
         for dir_prefix, spec in self._specs:
             if dir_prefix:
                 # This spec only applies to paths inside its directory
-                if not (
-                    relative_path.startswith(dir_prefix + "/")
-                    or relative_path == dir_prefix
-                ):
+                if not (relative_path.startswith(dir_prefix + "/") or relative_path == dir_prefix):
                     continue
-                local_path = relative_path[len(dir_prefix):].lstrip("/")
+                local_path = relative_path[len(dir_prefix) :].lstrip("/")
             else:
                 local_path = relative_path
 
