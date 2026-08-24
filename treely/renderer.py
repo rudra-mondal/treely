@@ -369,7 +369,7 @@ class Renderer:
         if cfg.summary:
             s = result.stats
             console.print(
-                f"\n{s.dirs} directories, {s.files} files",
+                f"\n{s.dirs} {'directory' if s.dirs == 1 else 'directories'}, {s.files} {'file' if s.files == 1 else 'files'}",
                 style="dim",
             )
 
@@ -402,7 +402,7 @@ class Renderer:
 
         if cfg.summary:
             s = result.stats
-            lines.append(f"\n{s.dirs} directories, {s.files} files")
+            lines.append(f"\n{s.dirs} {'directory' if s.dirs == 1 else 'directories'}, {s.files} {'file' if s.files == 1 else 'files'}")
 
         tree_text = "\n".join(lines)
 
@@ -442,7 +442,7 @@ class Renderer:
 
         if self.config.summary:
             s = result.stats
-            lines.append(f"\n_{s.dirs} directories, {s.files} files_")
+            lines.append(f"\n_{s.dirs} {'directory' if s.dirs == 1 else 'directories'}, {s.files} {'file' if s.files == 1 else 'files'}_")
 
         code_text, char_count = _render_code_to_string(
             result.code_files,
