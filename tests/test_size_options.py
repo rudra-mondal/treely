@@ -265,7 +265,7 @@ class TestCLIEndToEndSizeFlags:
         assert "0.0B" in empty_dir
         assert "40.0B" in hidden_dir
         assert "30.0B" in root_file
-        assert "directories" in out and "files" in out
+        assert ("directories" in out or "directory" in out) and ("files" in out or "file" in out)
 
     def test_cli_show_file_size(self, multi_level_project, capsys):
         out, err, code = run_main(

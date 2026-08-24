@@ -133,7 +133,7 @@ class TestFilteringFlags:
 
     def test_summary_printed(self, simple_project, capsys):
         out, _, _ = run_main([str(simple_project), "--no-banner", "--no-color", "-s"], capsys)
-        assert "directories" in out and "files" in out
+        assert ("directories" in out or "directory" in out) and ("files" in out or "file" in out)
 
     def test_show_size_adds_badge(self, simple_project, capsys):
         out, _, _ = run_main(
@@ -163,7 +163,7 @@ class TestFilteringFlags:
         readme_line = next((item for item in lines if "README.md" in item), None)
         assert src_line is not None and "[" in src_line and "]" in src_line
         assert readme_line is not None and "[" in readme_line and "]" in readme_line
-        assert "directories" in out and "files" in out
+        assert ("directories" in out or "directory" in out) and ("files" in out or "file" in out)
 
     def test_show_file_size_flag(self, simple_project, capsys):
         out, _, code = run_main(

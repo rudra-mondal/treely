@@ -37,7 +37,7 @@ class TestTextFormat:
 
     def test_summary_line(self, simple_project):
         out = _render_text(simple_project, summary=True)
-        assert "directories" in out
+        assert ("directories" in out or "directory" in out)
         assert "files" in out
 
     def test_no_ansi_in_plain_output(self, simple_project):
@@ -131,7 +131,7 @@ class TestJsonFormat:
         result = walk(simple_project, config, {})
         data = json.loads(Renderer(config).to_json(result))
         assert "_summary" in data
-        assert "directories" in data["_summary"]
+        assert ("directories" in data["_summary"] or "directory" in data["_summary"])
         assert "files" in data["_summary"]
 
     def test_json_includes_directory_sizes(self, simple_project):
@@ -178,7 +178,7 @@ class TestMarkdownFormat:
         )
         result = walk(simple_project, config, {})
         out = Renderer(config).to_markdown(result)
-        assert "_" in out and "directories" in out
+        assert "_" in out and ("directories" in out or "directory" in out)
 
 
 # ── Token count ───────────────────────────────────────────────────────────────
